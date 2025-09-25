@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consolidar Informes - Aprendo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="informes.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header-secondary">
+            <button class="btn-back" onclick="goBack()">← Volver</button>
+            <h1>📈 Consolidar Informes</h1>
+            <p>Consolida archivos de logs/informes de actividad en un Excel</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <h2>Subir Archivos</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <span class="upload-icon">📁</span>
+                        <h3>Arrastra archivos Excel aquí</h3>
+                        <p>o haz clic para seleccionar (máximo 60 archivos)</p>
+                        <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;">
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            Seleccionar Archivos
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="file-info" id="fileInfo" style="display: none;">
+                    <h3>Archivos seleccionados: <span id="fileCount">0</span></h3>
+                    <p class="file-requirement" id="fileRequirement">Se necesitan al menos 2 archivos para procesar</p>
+                    <div class="file-list" id="fileList"></div>
+                    <div class="process-controls">
+                        <button class="btn btn-success" id="processBtn" onclick="processFiles()" disabled>
+                            🚀 Procesar Archivos (<span id="btnFileCount">0</span>)
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearFiles()">
+                            🗑️ Limpiar Lista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="processing-section" id="processingSection" style="display: none;">
+                <h2>Procesando...</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressText">Preparando...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+            </div>
+
+            <div class="log-section">
+                <h2>Registro de Actividad</h2>
+                <div class="log-container" id="logContainer">
+                    <!-- Los logs aparecerán aquí -->
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="clearLog()">
+                    🧹 Limpiar Log
+                </button>
+            </div>
+
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h2>✅ Procesamiento Completado</h2>
+                <div class="results-summary" id="resultsSummary">
+                    <!-- Los resultados se mostrarán aquí -->
+                </div>
+                <div class="processed-files-section" id="processedFilesSection">
+                    <h3>📋 Archivos Procesados</h3>
+                    <div class="processed-files-list" id="processedFilesList">
+                        <!-- Lista de archivos procesados -->
+                    </div>
+                </div>
+                <div class="download-area" id="downloadArea">
+                    <!-- Los enlaces de descarga aparecerán aquí -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="informes.js"></script>
+</body>
+</html>

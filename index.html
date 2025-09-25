@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprendo - Gestión de Calificaciones</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Aprendo</h1>
+            <p>Sistema de Gestión de Calificaciones</p>
+        </header>
+
+        <main>
+            <div class="welcome-section">
+                <h2>¡Bienvenido!</h2>
+                <p>Esta es tu aplicación Electron para gestionar calificaciones de estudiantes.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>📊 Procesar Calificaciones</h3>
+                    <p>Importa y procesa archivos de calificaciones Excel</p>
+                    <button class="btn btn-primary" onclick="openCalificaciones()">
+                        Abrir Calificaciones
+                    </button>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📈 Consolidar Informes</h3>
+                    <p>Consolida archivos de logs/informes de actividad en un Excel</p>
+                    <button class="btn btn-secondary" onclick="openInformes()">
+                        Consolidar Informes
+                    </button>
+                </div>
+
+                <div class="feature-card">
+                    <h3>⚙️ Configuración</h3>
+                    <p>Configura parámetros del sistema</p>
+                    <button class="btn btn-secondary" onclick="openConfig()">
+                        Configuración
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <h3>Estado del Sistema</h3>
+                <div class="status-info">
+                    <div class="status-item">
+                        <span class="status-label">Última actualización:</span>
+                        <span class="status-value" id="lastUpdate">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Archivos procesados:</span>
+                        <span class="status-value" id="filesProcessed">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Estado:</span>
+                        <span class="status-value status-ready">Listo</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Aprendo v0.1.0 - Desarrollado por Christian Ferrer</p>
+        </footer>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
