@@ -55,8 +55,7 @@ function openInformes() {
 
 function openConfig() {
     showNotification('Abriendo configuración...', 'info');
-    // Aquí implementarías la lógica para abrir la configuración
-    console.log('Abriendo configuración');
+    window.location.href = 'config.html';
 }
 
 // Sistema de notificaciones

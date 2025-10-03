@@ -412,53 +412,112 @@ async function processLogFile(file) {
 async function generateConsolidatedLogFile(results) {
     const ExcelJS = require('exceljs');
     
-    logMessage('Generando archivo Excel consolidado de informes...', 'info');
+    // Obtener modo de consolidación configurado
+    const consolidationMode = window.configFilters?.getConsolidationMode() || 'separate';
+    console.log('Modo de consolidación:', consolidationMode);
+    logMessage(`Generando archivo Excel consolidado (modo: ${consolidationMode === 'separate' ? 'hojas separadas' : 'hoja única'})...`, 'info');
     
     try {
         // Crear nuevo workbook
         const workbook = new ExcelJS.Workbook();
         
-        let sheetsCreated = 0;
-        
-        // Crear una hoja por cada archivo procesado (manteniendo el orden)
-        results.processedSheets.forEach((sheetInfo) => {
-            const { sheetName, data } = sheetInfo;
-            if (data.length > 0) {
-                const worksheet = workbook.addWorksheet(sheetName);
-                
-                // Obtener las columnas del primer registro
-                const headers = Object.keys(data[0]);
-                
-                // Agregar headers
-                worksheet.addRow(headers);
-                
-                // Agregar datos
-                data.forEach(row => {
-                    const values = headers.map(header => row[header] || '');
-                    worksheet.addRow(values);
-                });
-                
-                // Formatear la hoja
-                worksheet.getRow(1).font = { bold: true };
-                worksheet.getRow(1).fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFE0E0E0' }
-                };
-                
-                // Autoajustar columnas
-                headers.forEach((header, index) => {
-                    const column = worksheet.getColumn(index + 1);
-                    column.width = Math.max(header.length, 15);
-                });
-                
-                sheetsCreated++;
-                logMessage(`Hoja creada: ${sheetName} (${data.length} registros)`, 'info');
+        if (consolidationMode === 'single') {
+            // MODO HOJA ÚNICA: Consolidar todo en una sola hoja
+            const worksheet = workbook.addWorksheet('Datos Consolidados');
+            
+            let allHeaders = new Set();
+            let allData = [];
+            
+            // Recopilar todos los headers y datos
+            results.processedSheets.forEach((sheetInfo) => {
+                const { sheetName, data } = sheetInfo;
+                if (data.length > 0) {
+                    // Agregar headers
+                    Object.keys(data[0]).forEach(header => allHeaders.add(header));
+                    
+                    // Agregar columna de origen si no existe
+                    data.forEach(row => {
+                        allData.push({
+                            'Archivo Origen': sheetName,
+                            ...row
+                        });
+                    });
+                }
+            });
+            
+            // Convertir Set a Array y agregar "Archivo Origen" al inicio
+            const headers = ['Archivo Origen', ...Array.from(allHeaders)];
+            
+            // Agregar headers
+            worksheet.addRow(headers);
+            
+            // Agregar todos los datos
+            allData.forEach(row => {
+                const values = headers.map(header => row[header] || '');
+                worksheet.addRow(values);
+            });
+            
+            // Formatear la hoja
+            worksheet.getRow(1).font = { bold: true };
+            worksheet.getRow(1).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE0E0E0' }
+            };
+            
+            // Autoajustar columnas
+            headers.forEach((header, index) => {
+                const column = worksheet.getColumn(index + 1);
+                column.width = Math.max(header.length, 15);
+            });
+            
+            logMessage(`Hoja única creada con ${allData.length} registros de ${results.processedSheets.length} archivos`, 'success');
+            
+        } else {
+            // MODO HOJAS SEPARADAS: Crear una hoja por cada archivo (comportamiento actual)
+            let sheetsCreated = 0;
+            
+            results.processedSheets.forEach((sheetInfo) => {
+                const { sheetName, data } = sheetInfo;
+                if (data.length > 0) {
+                    const worksheet = workbook.addWorksheet(sheetName);
+                    
+                    // Obtener las columnas del primer registro
+                    const headers = Object.keys(data[0]);
+                    
+                    // Agregar headers
+                    worksheet.addRow(headers);
+                    
+                    // Agregar datos
+                    data.forEach(row => {
+                        const values = headers.map(header => row[header] || '');
+                        worksheet.addRow(values);
+                    });
+                    
+                    // Formatear la hoja
+                    worksheet.getRow(1).font = { bold: true };
+                    worksheet.getRow(1).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFE0E0E0' }
+                    };
+                    
+                    // Autoajustar columnas
+                    headers.forEach((header, index) => {
+                        const column = worksheet.getColumn(index + 1);
+                        column.width = Math.max(header.length, 15);
+                    });
+                    
+                    sheetsCreated++;
+                    logMessage(`Hoja creada: ${sheetName} (${data.length} registros)`, 'info');
+                }
+            });
+            
+            if (sheetsCreated === 0) {
+                throw new Error('No se crearon hojas en el archivo Excel');
             }
-        });
-        
-        if (sheetsCreated === 0) {
-            throw new Error('No se crearon hojas en el archivo Excel');
+            
+            logMessage(`${sheetsCreated} hojas creadas exitosamente`, 'success');
         }
         
         // Generar archivo Excel
@@ -475,7 +534,7 @@ async function generateConsolidatedLogFile(results) {
         // Guardar referencia para descarga
         processedData.consolidatedFile = { url, fileName };
         
-        logMessage(`Archivo Excel de informes creado: ${fileName} (${sheetsCreated} hojas)`, 'success');
+        logMessage(`Archivo Excel de informes creado: ${fileName}`, 'success');
         
     } catch (error) {
         logMessage(`Error creando archivo Excel de informes: ${error.message}`, 'error');
@@ -529,10 +588,12 @@ function showResults(results) {
     // Mostrar detalles de archivos procesados
     showProcessedFilesList(results);
     
-    // Generar enlace de descarga
+    // Generar botón de descarga prominente
     let downloadHTML = `
-        <h3>🎉 ¡Informes Consolidados Listos!</h3>
-        <p style="background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; color: #155724; border: 1px solid #c3e6cb;">
+        <h3 style="margin-bottom: 15px; color: var(--success-color); font-size: 1.5rem; text-align: center;">
+            🎉 ¡Informes Consolidados Listos!
+        </h3>
+        <p class="success-message" style="text-align: center; margin: 15px auto; max-width: 600px;">
             ✅ <strong>Consolidación Completada:</strong> Los archivos de informes han sido consolidados exitosamente. 
             Cada archivo original ahora es una hoja separada en el archivo Excel consolidado, ordenadas por número de curso.
         </p>
@@ -540,16 +601,17 @@ function showResults(results) {
     
     if (processedData.consolidatedFile) {
         downloadHTML += `
-            <div style="text-align: center; margin: 20px 0;">
+            <div style="display: flex; justify-content: center; margin: 30px 0;">
                 <a href="${processedData.consolidatedFile.url}" 
                    download="${processedData.consolidatedFile.fileName}" 
                    class="download-btn">
-                    📥 Descargar Informes Consolidados
+                    <span class="download-icon">📥</span>
+                    <div class="download-content">
+                        <div class="download-title">Descargar Informes Consolidados</div>
+                        <div class="download-subtitle">${processedData.consolidatedFile.fileName}</div>
+                    </div>
                 </a>
             </div>
-            <p style="text-align: center; color: #666; font-size: 0.9rem;">
-                Archivo: ${processedData.consolidatedFile.fileName}
-            </p>
         `;
     }
     

@@ -284,7 +284,11 @@ async function processExcelFilesReal() {
             
             if (fileResult.data) {
                 const sheetName = generateSheetName(file.name);
-                results.processedSheets.push({ sheetName, data: fileResult.data }); // Usar array con objetos
+                results.processedSheets.push({ 
+                    sheetName, 
+                    data: fileResult.data,
+                    headers: fileResult.headers || Object.keys(fileResult.data[0] || {})
+                });
                 results.totalEliminated += fileResult.eliminated;
                 results.eliminatedEmails.push(...fileResult.eliminatedEmails);
                 results.successfulFiles++;
@@ -373,6 +377,9 @@ async function processExcelFileReal(file) {
                 
                 console.log(`Después del filtrado: ${filterResult.data.length} filas, ${filterResult.eliminated} eliminados`);
                 
+                // Incluir headers originales en el resultado
+                filterResult.headers = headers;
+                
                 resolve(filterResult);
                 
             } catch (error) {
@@ -400,12 +407,14 @@ async function generateConsolidatedFileReal(results) {
         
         // Crear una hoja por cada archivo procesado (manteniendo el orden)
         results.processedSheets.forEach((sheetInfo) => {
-            const { sheetName, data } = sheetInfo;
+            const { sheetName, data, headers: originalHeaders } = sheetInfo;
             if (data.length > 0) {
                 const worksheet = workbook.addWorksheet(sheetName);
                 
-                // Obtener las columnas del primer registro
-                const headers = Object.keys(data[0]);
+                // Usar los headers originales del archivo, no solo los del primer registro
+                const headers = originalHeaders || Object.keys(data[0]);
+                
+                console.log(`Creando hoja ${sheetName} con columnas:`, headers);
                 
                 // Agregar headers
                 worksheet.addRow(headers);
@@ -431,7 +440,7 @@ async function generateConsolidatedFileReal(results) {
                 });
                 
                 sheetsCreated++;
-                logMessage(`Hoja creada: ${sheetName} (${data.length} filas)`, 'info');
+                logMessage(`Hoja creada: ${sheetName} (${data.length} filas, ${headers.length} columnas)`, 'info');
             }
         });
         
@@ -456,12 +465,90 @@ async function generateConsolidatedFileReal(results) {
         // Generar archivo de usuarios eliminados
         if (results.eliminatedEmails.length > 0) {
             const uniqueEmails = [...new Set(results.eliminatedEmails)].sort();
-            let txtContent = 'Lista de usuarios eliminados (@uct.cl)\n';
-            txtContent += '='.repeat(50) + '\n';
-            txtContent += `Total: ${uniqueEmails.length} usuarios únicos\n\n`;
-            uniqueEmails.forEach((email, index) => {
-                txtContent += `${(index + 1).toString().padStart(3)}. ${email}\n`;
-            });
+            
+            // Obtener el total real de usuarios eliminados (email + RUT)
+            let totalEliminados = uniqueEmails.length;
+            let emailUsers = [];
+            let rutUsers = [];
+            
+            // Obtener información detallada de usuarios eliminados si está disponible
+            if (typeof window !== 'undefined' && window.configFilters && window.configFilters.getEliminatedHistory) {
+                const eliminatedHistory = window.configFilters.getEliminatedHistory();
+                
+                if (eliminatedHistory.length > 0 && eliminatedHistory[0].users) {
+                    const users = eliminatedHistory[0].users;
+                    emailUsers = users.filter(u => u.type === 'email');
+                    rutUsers = users.filter(u => u.type === 'rut');
+                    totalEliminados = emailUsers.length + rutUsers.length;
+                }
+            }
+            
+            let txtContent = 'REPORTE DE USUARIOS ELIMINADOS\n';
+            txtContent += '='.repeat(70) + '\n';
+            txtContent += `Fecha: ${new Date().toLocaleString()}\n`;
+            txtContent += `Total: ${totalEliminados} usuarios únicos eliminados\n`;
+            txtContent += '='.repeat(70) + '\n\n';
+            
+            // Obtener información de filtros activos si está disponible
+            if (typeof window !== 'undefined' && window.configFilters && window.configFilters.getActiveFilters) {
+                const activeFilters = window.configFilters.getActiveFilters();
+                txtContent += 'FILTROS APLICADOS:\n';
+                txtContent += '-'.repeat(70) + '\n';
+                
+                if (activeFilters.emailFilters.length > 0) {
+                    txtContent += '\nFiltros de Correo Electrónico:\n';
+                    activeFilters.emailFilters.forEach(filter => {
+                        txtContent += `  • ${filter.pattern}\n`;
+                    });
+                }
+                
+                if (activeFilters.rutFilters.length > 0) {
+                    txtContent += '\nFiltros de RUT:\n';
+                    activeFilters.rutFilters.forEach(filter => {
+                        txtContent += `  • ${filter.pattern}\n`;
+                    });
+                }
+                
+                txtContent += '\n';
+            } else {
+                txtContent += 'Sistema de filtrado: Configuración básica (fallback)\n\n';
+            }
+            
+            txtContent += '='.repeat(70) + '\n';
+            
+            // Mostrar usuarios eliminados
+            if (emailUsers.length > 0 || rutUsers.length > 0) {
+                // Usuarios eliminados por correo electrónico
+                if (emailUsers.length > 0) {
+                    txtContent += '\nUSUARIOS ELIMINADOS POR CORREO ELECTRÓNICO:\n';
+                    txtContent += '-'.repeat(70) + '\n';
+                    emailUsers.forEach((user, index) => {
+                        txtContent += `${(index + 1).toString().padStart(3)}. ${user.email}\n`;
+                    });
+                    txtContent += `\nTotal eliminados por correo: ${emailUsers.length}\n`;
+                }
+                
+                // Usuarios eliminados por RUT
+                if (rutUsers.length > 0) {
+                    txtContent += '\n' + '='.repeat(70) + '\n';
+                    txtContent += '\nUSUARIOS ELIMINADOS POR RUT:\n';
+                    txtContent += '-'.repeat(70) + '\n';
+                    rutUsers.forEach((user, index) => {
+                        txtContent += `${(index + 1).toString().padStart(3)}. ${user.rut} (${user.email})\n`;
+                    });
+                    txtContent += `\nTotal eliminados por RUT: ${rutUsers.length}\n`;
+                }
+            } else {
+                // Fallback al formato anterior si no hay información detallada
+                txtContent += '\nUSUARIOS ELIMINADOS:\n';
+                txtContent += '-'.repeat(70) + '\n';
+                uniqueEmails.forEach((email, index) => {
+                    txtContent += `${(index + 1).toString().padStart(3)}. ${email}\n`;
+                });
+            }
+            
+            txtContent += '\n' + '='.repeat(70) + '\n';
+            txtContent += 'FIN DEL REPORTE\n';
             
             const txtBlob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
             const txtUrl = URL.createObjectURL(txtBlob);
@@ -500,15 +587,64 @@ function generateCSVContent(processedSheets) {
 
 
 
-// Filtrar usuarios por email (replica exacta de la lógica Python)
+// Filtrar usuarios usando sistema de configuración avanzado
 function filterUsersByEmailReal(data, headers) {
-    console.log('Iniciando filtrado de usuarios...');
+    console.log('Iniciando filtrado de usuarios con sistema de configuración...');
     
     if (data.length === 0) {
         return { data: [], eliminated: 0, eliminatedEmails: [] };
     }
     
-    // Buscar columnas de email (igual que en Python)
+    // Verificar si el sistema de configuración está disponible
+    if (typeof window !== 'undefined' && window.configFilters && window.configFilters.applyUserFilters) {
+        console.log('Usando sistema de configuración avanzado');
+        
+        const result = window.configFilters.applyUserFilters(data, headers);
+        
+        // Convertir formato para compatibilidad con el código existente
+        // Incluir TODOS los usuarios eliminados (tanto por email como por RUT)
+        const eliminatedEmails = result.eliminatedUsers.map(user => {
+            if (user.type === 'email') {
+                return user.email;
+            } else if (user.type === 'rut') {
+                // Para usuarios eliminados por RUT, incluir el email si está disponible
+                return user.email || `RUT: ${user.rut}`;
+            } else {
+                return user.email || user.rut || 'Usuario desconocido';
+            }
+        });
+        
+        // Log detallado
+        const emailCount = result.eliminatedUsers.filter(u => u.type === 'email').length;
+        const rutCount = result.eliminatedUsers.filter(u => u.type === 'rut').length;
+        
+        if (emailCount > 0) {
+            logMessage(`Usuarios eliminados por filtros de email: ${emailCount}`, 'warning');
+        }
+        if (rutCount > 0) {
+            logMessage(`Usuarios eliminados por filtros de RUT: ${rutCount}`, 'warning');
+        }
+        
+        console.log(`Total usuarios eliminados: ${result.eliminated} (Email: ${emailCount}, RUT: ${rutCount})`);
+        console.log(`Usuarios restantes: ${result.data.length}`);
+        
+        return {
+            data: result.data,
+            eliminated: result.eliminated,
+            eliminatedEmails: eliminatedEmails
+        };
+    } else {
+        // Fallback al sistema básico si no está disponible la configuración
+        console.log('Sistema de configuración no disponible, usando filtrado básico');
+        return filterUsersByEmailBasic(data, headers);
+    }
+}
+
+// Sistema básico de filtrado (fallback)
+function filterUsersByEmailBasic(data, headers) {
+    console.log('Usando sistema básico de filtrado...');
+    
+    // Buscar columnas de email
     let emailColumns = [];
     
     // Primero buscar por nombre de columna
@@ -553,7 +689,7 @@ function filterUsersByEmailReal(data, headers) {
     console.log('Ejemplos de emails antes del filtrado:');
     sampleEmails.forEach(email => console.log(`  - ${email}`));
     
-    // Aplicar filtros (igual que en Python)
+    // Aplicar filtros básicos (regla original)
     const eliminatedUsers = [];
     const filteredData = [];
     
@@ -564,7 +700,7 @@ function filterUsersByEmailReal(data, headers) {
             const isUctEmail = /@uct\.cl$/i.test(emailStr);
             const isAluUctEmail = /@alu\.uct\.cl$/i.test(emailStr);
             
-            // Eliminar @uct.cl pero mantener @alu.uct.cl (igual que Python)
+            // Eliminar @uct.cl pero mantener @alu.uct.cl (regla original)
             if (isUctEmail && !isAluUctEmail) {
                 eliminatedUsers.push(emailStr);
                 console.log(`Usuario eliminado: ${emailStr}`);
@@ -639,24 +775,28 @@ function showResults(results) {
     // Mostrar detalles de archivos procesados
     showProcessedFilesList(results);
     
-    // Generar enlaces de descarga prominentes
+    // Generar botones de descarga prominentes
     let downloadHTML = `
-        <h3>🎉 ¡Archivos Procesados y Listos para Descargar!</h3>
-        <p style="background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; color: #155724; border: 1px solid #c3e6cb;">
+        <h3 style="margin-bottom: 15px; color: var(--success-color); font-size: 1.5rem; text-align: center;">
+            🎉 ¡Archivos Procesados y Listos para Descargar!
+        </h3>
+        <p class="success-message" style="text-align: center; margin: 15px auto; max-width: 600px;">
             ✅ <strong>Procesamiento Completado:</strong> Los archivos han sido consolidados exitosamente. 
             Cada archivo original se convirtió en una hoja separada del Excel final.
         </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 20px; align-items: center; margin-top: 30px;">
     `;
     
     if (processedData.consolidatedFile) {
         downloadHTML += `
             <a href="${processedData.consolidatedFile.url}" 
                download="${processedData.consolidatedFile.fileName}" 
-               class="download-link"
-               style="font-size: 1.1em; padding: 15px 30px;">
-                📊 Descargar Calificaciones Consolidadas (Excel)
-                <br><small style="opacity: 0.8;">${processedData.consolidatedFile.fileName}</small>
+               class="download-btn">
+                <span class="download-icon">📊</span>
+                <div class="download-content">
+                    <div class="download-title">Descargar Calificaciones Consolidadas</div>
+                    <div class="download-subtitle">${processedData.consolidatedFile.fileName}</div>
+                </div>
             </a>
         `;
     }
@@ -665,10 +805,12 @@ function showResults(results) {
         downloadHTML += `
             <a href="${processedData.eliminatedFile.url}" 
                download="${processedData.eliminatedFile.fileName}" 
-               class="download-link"
-               style="font-size: 1.1em; padding: 15px 30px;">
-                📝 Descargar Lista de Usuarios Eliminados
-                <br><small style="opacity: 0.8;">${processedData.eliminatedFile.fileName}</small>
+               class="download-btn download-btn-secondary">
+                <span class="download-icon">📝</span>
+                <div class="download-content">
+                    <div class="download-title">Descargar Lista de Usuarios Eliminados por Filtros</div>
+                    <div class="download-subtitle">${processedData.eliminatedFile.fileName}</div>
+                </div>
             </a>
         `;
     }

@@ -6,17 +6,57 @@
     "start": "electron .",
     "start:linux": "node scripts/start-electron.js",
     "dev": "electron . --enable-logging",
+    "build": "electron-builder --win",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -mwl",
+    "clean": "rimraf dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "Christian Ferrer",
   "license": "ISC",
   "description": "Aplicación Electron para gestión de calificaciones",
   "devDependencies": {
-    "electron": "^38.0.0"
+    "electron": "^38.0.0",
+    "electron-builder": "^25.1.8",
+    "rimraf": "^6.0.1"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
     "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.aprendo.app",
+    "productName": "Aprendo",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/*.md",
+      "!.git/**/*",
+      "!dist/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "icon.png"
+    }
   }
 }
