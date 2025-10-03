@@ -261,6 +261,12 @@ async function processExcelFilesReal() {
         fileResults: {}
     };
     
+    // Iniciar batch processing si está disponible
+    if (window.configFilters && window.configFilters.startBatchProcessing) {
+        window.configFilters.startBatchProcessing();
+        console.log('Batch processing iniciado');
+    }
+    
     // Ordenar archivos por número de curso (menor a mayor)
     const sortedFiles = [...selectedFiles].sort((a, b) => {
         const extractNumber = (fileName) => {
@@ -302,6 +308,13 @@ async function processExcelFilesReal() {
     }
     
     updateProgress(selectedFiles.length, selectedFiles.length, 'Procesamiento completado');
+    
+    // Finalizar batch processing y obtener todos los usuarios eliminados acumulados
+    if (window.configFilters && window.configFilters.finishBatchProcessing) {
+        window.configFilters.finishBatchProcessing();
+        console.log('Batch processing finalizado');
+    }
+    
     return results;
 }
 
@@ -471,21 +484,51 @@ async function generateConsolidatedFileReal(results) {
             let emailUsers = [];
             let rutUsers = [];
             
-            // Obtener información detallada de usuarios eliminados si está disponible
+            // Obtener información detallada de usuarios eliminados del historial más reciente
+            // (que contiene TODOS los usuarios eliminados de TODOS los archivos procesados)
             if (typeof window !== 'undefined' && window.configFilters && window.configFilters.getEliminatedHistory) {
                 const eliminatedHistory = window.configFilters.getEliminatedHistory();
                 
+                // El historial más reciente ahora contiene TODOS los usuarios eliminados del batch
                 if (eliminatedHistory.length > 0 && eliminatedHistory[0].users) {
                     const users = eliminatedHistory[0].users;
-                    emailUsers = users.filter(u => u.type === 'email');
-                    rutUsers = users.filter(u => u.type === 'rut');
+                    
+                    // Eliminar duplicados por email
+                    const emailUsersMap = new Map();
+                    const rutUsersMap = new Map();
+                    
+                    users.forEach(user => {
+                        if (user.type === 'email' && user.email) {
+                            // Usar email como clave para evitar duplicados
+                            if (!emailUsersMap.has(user.email.toLowerCase())) {
+                                emailUsersMap.set(user.email.toLowerCase(), user);
+                            }
+                        } else if (user.type === 'rut' && user.rut) {
+                            // Usar RUT como clave para evitar duplicados
+                            if (!rutUsersMap.has(user.rut)) {
+                                rutUsersMap.set(user.rut, user);
+                            }
+                        }
+                    });
+                    
+                    // Convertir de vuelta a arrays y ordenar
+                    emailUsers = Array.from(emailUsersMap.values()).sort((a, b) => 
+                        (a.email || '').localeCompare(b.email || '')
+                    );
+                    rutUsers = Array.from(rutUsersMap.values()).sort((a, b) => 
+                        (a.rut || '').localeCompare(b.rut || '')
+                    );
+                    
                     totalEliminados = emailUsers.length + rutUsers.length;
+                    
+                    console.log(`Reporte: ${emailUsers.length} usuarios únicos por email, ${rutUsers.length} únicos por RUT`);
                 }
             }
             
             let txtContent = 'REPORTE DE USUARIOS ELIMINADOS\n';
             txtContent += '='.repeat(70) + '\n';
             txtContent += `Fecha: ${new Date().toLocaleString()}\n`;
+            txtContent += `Archivos procesados: ${results.successfulFiles}\n`;
             txtContent += `Total: ${totalEliminados} usuarios únicos eliminados\n`;
             txtContent += '='.repeat(70) + '\n\n';
             

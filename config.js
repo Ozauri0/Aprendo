@@ -421,12 +421,19 @@ function applyUserFilters(data, headers) {
     filteredData = rutResult.data;
     eliminatedUsers = eliminatedUsers.concat(rutResult.eliminatedUsers);
 
-    // Guardar en historial
+    // Guardar en historial o acumular en batch
     if (eliminatedUsers.length > 0) {
-        addToEliminatedHistory(eliminatedUsers);
+        if (isBatchProcessing) {
+            // Acumular en el batch sin guardar aún
+            batchEliminatedUsers = batchEliminatedUsers.concat(eliminatedUsers);
+            console.log(`Usuarios acumulados en batch: ${batchEliminatedUsers.length}`);
+        } else {
+            // Guardar inmediatamente si no estamos en modo batch
+            addToEliminatedHistory(eliminatedUsers);
+        }
     }
 
-    console.log(`Total usuarios eliminados: ${eliminatedUsers.length}`);
+    console.log(`Total usuarios eliminados en esta operación: ${eliminatedUsers.length}`);
     
     return {
         data: filteredData,
@@ -875,6 +882,36 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// ================= SISTEMA DE BATCH PROCESSING =================
+
+// Variable temporal para acumular usuarios eliminados durante un batch
+let batchEliminatedUsers = [];
+let isBatchProcessing = false;
+
+// Iniciar un batch de procesamiento
+function startBatchProcessing() {
+    console.log('Iniciando batch de procesamiento...');
+    isBatchProcessing = true;
+    batchEliminatedUsers = [];
+}
+
+// Finalizar un batch de procesamiento y guardar en historial
+function finishBatchProcessing() {
+    console.log(`Finalizando batch de procesamiento con ${batchEliminatedUsers.length} usuarios eliminados`);
+    
+    if (batchEliminatedUsers.length > 0) {
+        addToEliminatedHistory(batchEliminatedUsers);
+    }
+    
+    isBatchProcessing = false;
+    batchEliminatedUsers = [];
+}
+
+// Obtener usuarios eliminados del batch actual
+function getBatchEliminatedUsers() {
+    return [...batchEliminatedUsers];
+}
+
 // ================= FUNCIONES EXPORTADAS =================
 
 // Estas funciones serán llamadas desde calificaciones.js e informes.js
@@ -888,7 +925,11 @@ window.configFilters = {
     getConsolidationMode: () => consolidationMode,
     getAutoSave: () => autoSave,
     getDetailedLogs: () => detailedLogs,
-    getMaxFiles: () => maxFiles
+    getMaxFiles: () => maxFiles,
+    // Funciones de batch processing
+    startBatchProcessing: startBatchProcessing,
+    finishBatchProcessing: finishBatchProcessing,
+    getBatchEliminatedUsers: getBatchEliminatedUsers
 };
 
 // ================= INICIALIZACIÓN AUTOMÁTICA =================
