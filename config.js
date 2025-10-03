@@ -8,7 +8,7 @@ let persistenceEnabled = true; // Siempre activado
 let consolidationMode = 'separate'; // 'separate' o 'single'
 let autoSave = true;
 let detailedLogs = true;
-let maxFiles = 10;
+let maxFiles = 60;
 
 // Configuración por defecto (migrada del sistema básico)
 const DEFAULT_CONFIG = {
@@ -19,7 +19,7 @@ const DEFAULT_CONFIG = {
             action: 'exclude',
             exceptions: ['@alu.uct.cl'],
             enabled: true,
-            description: 'Filtro básico: Eliminar @uct.cl excepto @alu.uct.cl'
+            description: 'Filtro básico: Eliminar @uct.cl'
         }
     ],
     rutFilters: [],
@@ -27,7 +27,7 @@ const DEFAULT_CONFIG = {
     consolidationMode: 'separate',
     autoSave: true,
     detailedLogs: true,
-    maxFiles: 10
+    maxFiles: 60
 };
 
 // Inicializar configuración
@@ -45,10 +45,36 @@ document.addEventListener('DOMContentLoaded', function() {
     loadConfiguration();
     updateUI();
     setupEventListeners();
+    
+    // Vigilar que los inputs permanezcan habilitados
+    setInterval(() => {
+        const emailInput = document.getElementById('emailInput');
+        const rutInput = document.getElementById('rutInput');
+        
+        if (emailInput && emailInput.disabled) {
+            console.warn('Input de email estaba deshabilitado, rehabilitando...');
+            emailInput.disabled = false;
+        }
+        if (rutInput && rutInput.disabled) {
+            console.warn('Input de RUT estaba deshabilitado, rehabilitando...');
+            rutInput.disabled = false;
+        }
+    }, 1000);
 });
 
 // Configurar event listeners
 function setupEventListeners() {
+    // Asegurar que los inputs estén habilitados al iniciar
+    const emailInput = document.getElementById('emailInput');
+    const rutInput = document.getElementById('rutInput');
+    
+    if (emailInput) {
+        emailInput.disabled = false;
+    }
+    if (rutInput) {
+        rutInput.disabled = false;
+    }
+    
     // Modo de consolidación
     const consolidationRadios = document.querySelectorAll('input[name="consolidationMode"]');
     consolidationRadios.forEach(radio => {
@@ -92,12 +118,10 @@ function setupEventListeners() {
     }
 
     // Enter key para agregar filtros
-    const emailInput = document.getElementById('emailInput');
-    const rutInput = document.getElementById('rutInput');
-    
     if (emailInput) {
         emailInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 addEmailFilter();
             }
         });
@@ -106,6 +130,7 @@ function setupEventListeners() {
     if (rutInput) {
         rutInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 addRutFilter();
             }
         });
@@ -133,6 +158,12 @@ function addEmailFilter() {
         input.value = '';
         updateEmailFiltersUI();
         saveConfiguration(); // Guardado automático
+        
+        // Asegurar que el input permanezca habilitado y enfocado
+        setTimeout(() => {
+            input.disabled = false;
+            input.focus();
+        }, 50);
     }
 }
 
@@ -213,6 +244,15 @@ function removeEmailFilter(index) {
         emailFilters.splice(index, 1);
         updateEmailFiltersUI();
         saveConfiguration(); // Guardado automático
+        
+        // Re-habilitar el input después de eliminar
+        setTimeout(() => {
+            const emailInput = document.getElementById('emailInput');
+            if (emailInput) {
+                emailInput.disabled = false;
+                emailInput.focus();
+            }
+        }, 100);
     }
 }
 
@@ -254,6 +294,12 @@ function updateEmailFiltersUI() {
             </div>
         </div>
     `).join('');
+    
+    // Asegurar que el input esté habilitado después de actualizar la UI
+    const emailInput = document.getElementById('emailInput');
+    if (emailInput) {
+        emailInput.disabled = false;
+    }
 }
 
 // ================= FILTROS DE RUT =================
@@ -271,6 +317,12 @@ function addRutFilter() {
         input.value = '';
         updateRutFiltersUI();
         saveConfiguration(); // Guardado automático
+        
+        // Asegurar que el input permanezca habilitado y enfocado
+        setTimeout(() => {
+            input.disabled = false;
+            input.focus();
+        }, 50);
     }
 }
 
@@ -356,6 +408,15 @@ function removeRutFilter(index) {
         rutFilters.splice(index, 1);
         updateRutFiltersUI();
         saveConfiguration(); // Guardado automático
+        
+        // Re-habilitar el input después de eliminar
+        setTimeout(() => {
+            const rutInput = document.getElementById('rutInput');
+            if (rutInput) {
+                rutInput.disabled = false;
+                rutInput.focus();
+            }
+        }, 100);
     }
 }
 
@@ -396,6 +457,12 @@ function updateRutFiltersUI() {
             </div>
         </div>
     `).join('');
+    
+    // Asegurar que el input esté habilitado después de actualizar la UI
+    const rutInput = document.getElementById('rutInput');
+    if (rutInput) {
+        rutInput.disabled = false;
+    }
 }
 
 // ================= SISTEMA DE FILTRADO =================
