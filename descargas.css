@@ -1,0 +1,81 @@
+/* descargas.css */
+
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    background-color: #f8fafc;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.status-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background: white;
+    border-radius: 50px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.status-icon {
+    font-size: 1.5rem;
+}
+
+.btn-large {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.log-container {
+    margin-top: 20px;
+}
+
+.activity-log {
+    background-color: #1a202c;
+    color: #a0aec0;
+    padding: 15px;
+    border-radius: 8px;
+    height: 300px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+    border-bottom: 1px solid #2d3748;
+    padding-bottom: 2px;
+}
+
+.log-time {
+    color: #63b3ed;
+    margin-right: 10px;
+}
+
+.log-info { color: #a0aec0; }
+.log-success { color: #48bb78; }
+.log-warning { color: #ed8936; }
+.log-error { color: #f56565; }
+
+/* Animations */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.status-processing .status-icon {
+    animation: pulse 1.5s infinite;
+}

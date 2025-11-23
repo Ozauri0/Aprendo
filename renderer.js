@@ -23,7 +23,7 @@ function updateStatus() {
     const now = new Date();
     const lastUpdateElement = document.getElementById('lastUpdate');
     const filesProcessedElement = document.getElementById('filesProcessed');
-    
+
     if (lastUpdateElement) {
         lastUpdateElement.textContent = now.toLocaleString('es-ES', {
             year: 'numeric',
@@ -33,7 +33,7 @@ function updateStatus() {
             minute: '2-digit'
         });
     }
-    
+
     if (filesProcessedElement) {
         // Aquí podrías obtener el número real de archivos procesados
         filesProcessedElement.textContent = '20'; // Ejemplo estático
@@ -58,13 +58,18 @@ function openConfig() {
     window.location.href = 'config.html';
 }
 
+function openDescargas() {
+    showNotification('Abriendo gestor de descargas...', 'info');
+    window.location.href = 'descargas.html';
+}
+
 // Sistema de notificaciones
 function showNotification(message, type = 'info') {
     // Crear elemento de notificación
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
-    
+
     // Estilos de la notificación
     notification.style.cssText = `
         position: fixed;
@@ -80,7 +85,7 @@ function showNotification(message, type = 'info') {
         max-width: 300px;
         word-wrap: break-word;
     `;
-    
+
     // Agregar animación CSS
     const style = document.createElement('style');
     style.textContent = `
@@ -106,10 +111,10 @@ function showNotification(message, type = 'info') {
         }
     `;
     document.head.appendChild(style);
-    
+
     // Agregar al DOM
     document.body.appendChild(notification);
-    
+
     // Auto-eliminar después de 3 segundos
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease-out';
@@ -141,6 +146,7 @@ function logMessage(message, level = 'info') {
 window.openCalificaciones = openCalificaciones;
 window.openInformes = openInformes;
 window.openConfig = openConfig;
+window.openDescargas = openDescargas;
 
 // Mensaje de bienvenida en consola
 console.log(`

@@ -31,9 +31,9 @@ const DEFAULT_CONFIG = {
 };
 
 // Inicializar configuración
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('Iniciando sistema de configuración...');
-    
+
     // Test de normalización de RUT
     console.log('=== TEST DE NORMALIZACIÓN RUT ===');
     console.log('22718730 normalizado:', normalizeRut('22718730'));
@@ -41,16 +41,16 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('22718730-5 normalizado:', normalizeRut('22718730-5'));
     console.log('22.718.730-5 normalizado:', normalizeRut('22.718.730-5'));
     console.log('=================================');
-    
+
     loadConfiguration();
     updateUI();
     setupEventListeners();
-    
+
     // Vigilar que los inputs permanezcan habilitados
     setInterval(() => {
         const emailInput = document.getElementById('emailInput');
         const rutInput = document.getElementById('rutInput');
-        
+
         if (emailInput && emailInput.disabled) {
             console.warn('Input de email estaba deshabilitado, rehabilitando...');
             emailInput.disabled = false;
@@ -67,18 +67,18 @@ function setupEventListeners() {
     // Asegurar que los inputs estén habilitados al iniciar
     const emailInput = document.getElementById('emailInput');
     const rutInput = document.getElementById('rutInput');
-    
+
     if (emailInput) {
         emailInput.disabled = false;
     }
     if (rutInput) {
         rutInput.disabled = false;
     }
-    
+
     // Modo de consolidación
     const consolidationRadios = document.querySelectorAll('input[name="consolidationMode"]');
     consolidationRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
+        radio.addEventListener('change', function () {
             if (this.checked) {
                 consolidationMode = this.value;
                 saveConfiguration(); // Guardado automático
@@ -90,7 +90,7 @@ function setupEventListeners() {
     // Auto Save
     const autoSaveCheckbox = document.getElementById('autoSave');
     if (autoSaveCheckbox) {
-        autoSaveCheckbox.addEventListener('change', function() {
+        autoSaveCheckbox.addEventListener('change', function () {
             autoSave = this.checked;
             saveConfiguration(); // Guardado automático
             console.log('Auto Save cambiado a:', autoSave);
@@ -100,7 +100,7 @@ function setupEventListeners() {
     // Detailed Logs
     const detailedLogsCheckbox = document.getElementById('detailedLogs');
     if (detailedLogsCheckbox) {
-        detailedLogsCheckbox.addEventListener('change', function() {
+        detailedLogsCheckbox.addEventListener('change', function () {
             detailedLogs = this.checked;
             saveConfiguration(); // Guardado automático
             console.log('Detailed Logs cambiado a:', detailedLogs);
@@ -110,7 +110,7 @@ function setupEventListeners() {
     // Max Files
     const maxFilesInput = document.getElementById('maxFiles');
     if (maxFilesInput) {
-        maxFilesInput.addEventListener('change', function() {
+        maxFilesInput.addEventListener('change', function () {
             maxFiles = parseInt(this.value);
             saveConfiguration(); // Guardado automático
             console.log('Max Files cambiado a:', maxFiles);
@@ -119,7 +119,7 @@ function setupEventListeners() {
 
     // Enter key para agregar filtros
     if (emailInput) {
-        emailInput.addEventListener('keypress', function(e) {
+        emailInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 addEmailFilter();
@@ -128,7 +128,7 @@ function setupEventListeners() {
     }
 
     if (rutInput) {
-        rutInput.addEventListener('keypress', function(e) {
+        rutInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 addRutFilter();
@@ -148,7 +148,7 @@ function goBack() {
 function addEmailFilter() {
     const input = document.getElementById('emailInput');
     const email = input.value.trim();
-    
+
     if (!email) {
         alert('Por favor ingrese un correo electrónico válido');
         return;
@@ -158,7 +158,7 @@ function addEmailFilter() {
         input.value = '';
         updateEmailFiltersUI();
         saveConfiguration(); // Guardado automático
-        
+
         // Asegurar que el input permanezca habilitado y enfocado
         setTimeout(() => {
             input.disabled = false;
@@ -172,7 +172,7 @@ function addBulkEmails() {
     const emails = textarea.value.split('\n')
         .map(email => email.trim())
         .filter(email => email.length > 0);
-    
+
     if (emails.length === 0) {
         alert('Por favor ingrese al menos un correo electrónico');
         return;
@@ -187,7 +187,7 @@ function addBulkEmails() {
 
     textarea.value = '';
     updateEmailFiltersUI();
-    
+
     if (addedCount > 0) {
         alert(`Se agregaron ${addedCount} filtros de correo`);
         saveConfiguration(); // Guardado automático
@@ -202,10 +202,10 @@ function addSingleEmailFilter(email) {
     }
 
     // Verificar duplicados
-    const exists = emailFilters.some(filter => 
+    const exists = emailFilters.some(filter =>
         filter.pattern.toLowerCase() === email.toLowerCase()
     );
-    
+
     if (exists) {
         alert(`El correo ${email} ya está en la lista de filtros`);
         return false;
@@ -244,7 +244,7 @@ function removeEmailFilter(index) {
         emailFilters.splice(index, 1);
         updateEmailFiltersUI();
         saveConfiguration(); // Guardado automático
-        
+
         // Re-habilitar el input después de eliminar
         setTimeout(() => {
             const emailInput = document.getElementById('emailInput');
@@ -265,11 +265,11 @@ function toggleEmailFilter(index) {
 function updateEmailFiltersUI() {
     const container = document.getElementById('emailFilters');
     const countSpan = document.getElementById('emailCount');
-    
+
     if (!container || !countSpan) return;
 
     countSpan.textContent = emailFilters.length;
-    
+
     if (emailFilters.length === 0) {
         container.innerHTML = '<p class="no-filters">No hay filtros de correo configurados</p>';
         return;
@@ -294,7 +294,7 @@ function updateEmailFiltersUI() {
             </div>
         </div>
     `).join('');
-    
+
     // Asegurar que el input esté habilitado después de actualizar la UI
     const emailInput = document.getElementById('emailInput');
     if (emailInput) {
@@ -307,7 +307,7 @@ function updateEmailFiltersUI() {
 function addRutFilter() {
     const input = document.getElementById('rutInput');
     const rut = input.value.trim();
-    
+
     if (!rut) {
         alert('Por favor ingrese un RUT válido');
         return;
@@ -317,7 +317,7 @@ function addRutFilter() {
         input.value = '';
         updateRutFiltersUI();
         saveConfiguration(); // Guardado automático
-        
+
         // Asegurar que el input permanezca habilitado y enfocado
         setTimeout(() => {
             input.disabled = false;
@@ -331,7 +331,7 @@ function addBulkRuts() {
     const ruts = textarea.value.split('\n')
         .map(rut => rut.trim())
         .filter(rut => rut.length > 0);
-    
+
     if (ruts.length === 0) {
         alert('Por favor ingrese al menos un RUT');
         return;
@@ -346,7 +346,7 @@ function addBulkRuts() {
 
     textarea.value = '';
     updateRutFiltersUI();
-    
+
     if (addedCount > 0) {
         alert(`Se agregaron ${addedCount} filtros de RUT`);
         saveConfiguration(); // Guardado automático
@@ -355,7 +355,7 @@ function addBulkRuts() {
 
 function addSingleRutFilter(rut) {
     const normalizedRut = normalizeRut(rut);
-    
+
     if (!validateRut(normalizedRut)) {
         alert(`RUT inválido: ${rut}`);
         return false;
@@ -363,7 +363,7 @@ function addSingleRutFilter(rut) {
 
     // Verificar duplicados
     const exists = rutFilters.some(filter => filter.pattern === normalizedRut);
-    
+
     if (exists) {
         alert(`El RUT ${rut} ya está en la lista de filtros`);
         return false;
@@ -386,7 +386,7 @@ function addSingleRutFilter(rut) {
 function normalizeRut(rut) {
     // Convertir a string y remover espacios, puntos y guiones
     const rutStr = String(rut).replace(/[.\s-]/g, '').toUpperCase();
-    
+
     // Si es solo números (como 22525788), mantenerlo así
     // Si tiene dígito verificador (como 22525788K), mantenerlo
     return rutStr;
@@ -395,11 +395,11 @@ function normalizeRut(rut) {
 function validateRut(rut) {
     // Validar formato de RUT chileno - con o sin dígito verificador
     const rutStr = String(rut).replace(/[.\s-]/g, '');
-    
+
     // Permitir solo números (7-8 dígitos) o números con dígito verificador
     const rutRegexWithDV = /^\d{7,8}[0-9K]$/i; // Con dígito verificador
     const rutRegexOnlyNumbers = /^\d{7,8}$/; // Solo números
-    
+
     return rutRegexWithDV.test(rutStr) || rutRegexOnlyNumbers.test(rutStr);
 }
 
@@ -408,7 +408,7 @@ function removeRutFilter(index) {
         rutFilters.splice(index, 1);
         updateRutFiltersUI();
         saveConfiguration(); // Guardado automático
-        
+
         // Re-habilitar el input después de eliminar
         setTimeout(() => {
             const rutInput = document.getElementById('rutInput');
@@ -429,11 +429,11 @@ function toggleRutFilter(index) {
 function updateRutFiltersUI() {
     const container = document.getElementById('rutFilters');
     const countSpan = document.getElementById('rutCount');
-    
+
     if (!container || !countSpan) return;
 
     countSpan.textContent = rutFilters.length;
-    
+
     if (rutFilters.length === 0) {
         container.innerHTML = '<p class="no-filters">No hay filtros de RUT configurados</p>';
         return;
@@ -457,7 +457,7 @@ function updateRutFiltersUI() {
             </div>
         </div>
     `).join('');
-    
+
     // Asegurar que el input esté habilitado después de actualizar la UI
     const rutInput = document.getElementById('rutInput');
     if (rutInput) {
@@ -470,7 +470,7 @@ function updateRutFiltersUI() {
 // Función principal que será llamada desde calificaciones.js
 function applyUserFilters(data, headers) {
     console.log('Aplicando filtros de configuración...');
-    
+
     if (!data || data.length === 0) {
         return { data: [], eliminated: 0, eliminatedUsers: [] };
     }
@@ -501,7 +501,7 @@ function applyUserFilters(data, headers) {
     }
 
     console.log(`Total usuarios eliminados en esta operación: ${eliminatedUsers.length}`);
-    
+
     return {
         data: filteredData,
         eliminated: eliminatedUsers.length,
@@ -511,14 +511,14 @@ function applyUserFilters(data, headers) {
 
 function applyEmailFilters(data, headers) {
     const activeFilters = emailFilters.filter(filter => filter.enabled);
-    
+
     if (activeFilters.length === 0) {
         return { data: data, eliminatedUsers: [] };
     }
 
     // Encontrar columnas de email
     const emailColumns = findEmailColumns(headers);
-    
+
     if (emailColumns.length === 0) {
         console.log('No se encontraron columnas de email');
         return { data: data, eliminatedUsers: [] };
@@ -535,7 +535,7 @@ function applyEmailFilters(data, headers) {
 
         if (email && typeof email === 'string') {
             const emailStr = email.trim().toLowerCase();
-            
+
             for (const filter of activeFilters) {
                 if (matchesEmailFilter(emailStr, filter)) {
                     shouldEliminate = true;
@@ -562,7 +562,7 @@ function applyEmailFilters(data, headers) {
 
 function applyRutFilters(data, headers) {
     const activeFilters = rutFilters.filter(filter => filter.enabled);
-    
+
     if (activeFilters.length === 0) {
         return { data: data, eliminatedUsers: [] };
     }
@@ -570,7 +570,7 @@ function applyRutFilters(data, headers) {
     // Encontrar columnas de RUT y email
     const rutColumns = findRutColumns(headers);
     const emailColumns = findEmailColumns(headers);
-    
+
     if (rutColumns.length === 0) {
         console.log('No se encontraron columnas de RUT');
         return { data: data, eliminatedUsers: [] };
@@ -586,11 +586,11 @@ function applyRutFilters(data, headers) {
     activeFilters.forEach(filter => {
         console.log(`  - Filtro: ${filter.pattern} (habilitado: ${filter.enabled})`);
     });
-    
+
     if (emailColumn) {
         console.log(`Columna de email encontrada: ${emailColumn}`);
     }
-    
+
     // Mostrar algunas muestras de RUTs en los datos
     const sampleRuts = data.slice(0, 3).map(row => row[rutColumn]).filter(rut => rut);
     console.log('Ejemplos de RUTs en los datos:', sampleRuts);
@@ -605,10 +605,10 @@ function applyRutFilters(data, headers) {
             // Manejar tanto números como strings
             const rutValue = String(rut).trim();
             const normalizedRut = normalizeRut(rutValue);
-            
+
             for (const filter of activeFilters) {
                 const matchResult = matchesRutFilter(normalizedRut, filter.pattern);
-                
+
                 if (matchResult) {
                     shouldEliminate = true;
                     eliminationReason = `Filtro RUT: ${filter.pattern}`;
@@ -638,7 +638,7 @@ function applyRutFilters(data, headers) {
     console.log(`Filas eliminadas: ${eliminatedUsers.length}`);
     console.log(`Filas resultantes: ${filteredData.length}`);
     console.log(`======================================`);
-    
+
     return { data: filteredData, eliminatedUsers: eliminatedUsers };
 }
 
@@ -646,7 +646,7 @@ function matchesEmailFilter(email, filter) {
     if (filter.type === 'domain') {
         const domain = filter.pattern.toLowerCase();
         const emailEndsWithDomain = email.endsWith(domain);
-        
+
         // Verificar excepciones
         if (emailEndsWithDomain && filter.exceptions) {
             for (const exception of filter.exceptions) {
@@ -655,7 +655,7 @@ function matchesEmailFilter(email, filter) {
                 }
             }
         }
-        
+
         return emailEndsWithDomain;
     } else {
         return email === filter.pattern.toLowerCase();
@@ -666,22 +666,22 @@ function matchesRutFilter(rut, filterPattern) {
     // Normalizar ambos RUTs para comparación (quitar puntos, espacios, guiones)
     const normalizedRut = normalizeRut(rut);
     const normalizedFilter = normalizeRut(filterPattern);
-    
+
     // Comparar directamente
     if (normalizedRut === normalizedFilter) {
         return true;
     }
-    
+
     // Comparar solo la parte numérica (ignorar dígito verificador)
     const rutNumbers = normalizedRut.replace(/[^0-9]/g, '');
     const filterNumbers = normalizedFilter.replace(/[^0-9]/g, '');
-    
+
     return rutNumbers === filterNumbers;
 }
 
 function findEmailColumns(headers) {
     const emailColumns = [];
-    
+
     for (const header of headers) {
         if (header && (
             header.toLowerCase().includes('email') ||
@@ -691,13 +691,13 @@ function findEmailColumns(headers) {
             emailColumns.push(header);
         }
     }
-    
+
     return emailColumns;
 }
 
 function findRutColumns(headers) {
     const rutColumns = [];
-    
+
     for (const header of headers) {
         if (header && (
             header.toLowerCase().includes('rut') ||
@@ -711,7 +711,7 @@ function findRutColumns(headers) {
             rutColumns.push(header);
         }
     }
-    
+
     return rutColumns;
 }
 
@@ -723,14 +723,14 @@ function addToEliminatedHistory(eliminatedUsers) {
         users: eliminatedUsers,
         totalCount: eliminatedUsers.length
     };
-    
+
     eliminatedUsersHistory.unshift(historyEntry);
-    
+
     // Mantener solo los últimos 10 reportes
     if (eliminatedUsersHistory.length > 10) {
         eliminatedUsersHistory = eliminatedUsersHistory.slice(0, 10);
     }
-    
+
     if (persistenceEnabled) {
         saveConfiguration();
     }
@@ -739,7 +739,7 @@ function addToEliminatedHistory(eliminatedUsers) {
 function showEliminatedReport() {
     const reportDiv = document.getElementById('eliminatedReport');
     const listDiv = document.getElementById('eliminatedList');
-    
+
     if (!reportDiv || !listDiv) return;
 
     if (eliminatedUsersHistory.length === 0) {
@@ -765,7 +765,7 @@ function showEliminatedReport() {
         `;
         listDiv.innerHTML = html;
     }
-    
+
     reportDiv.style.display = reportDiv.style.display === 'none' ? 'block' : 'none';
 }
 
@@ -815,7 +815,7 @@ function saveConfiguration(showNotif = false) {
     try {
         localStorage.setItem('aprendo_user_filters_config', JSON.stringify(config));
         console.log('Configuración guardada exitosamente');
-        
+
         // Mostrar notificación solo si se solicita explícitamente
         if (showNotif) {
             showNotification('Configuración guardada', 'success');
@@ -831,19 +831,19 @@ function saveConfiguration(showNotif = false) {
 function loadConfiguration() {
     try {
         const savedConfig = localStorage.getItem('aprendo_user_filters_config');
-        
+
         if (savedConfig) {
             const config = JSON.parse(savedConfig);
             emailFilters = config.emailFilters || DEFAULT_CONFIG.emailFilters;
             rutFilters = config.rutFilters || DEFAULT_CONFIG.rutFilters;
             eliminatedUsersHistory = config.eliminatedUsersHistory || [];
-            persistenceEnabled = config.persistenceEnabled !== undefined ? 
-                                config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
+            persistenceEnabled = config.persistenceEnabled !== undefined ?
+                config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
             consolidationMode = config.consolidationMode || DEFAULT_CONFIG.consolidationMode;
             autoSave = config.autoSave !== undefined ? config.autoSave : DEFAULT_CONFIG.autoSave;
             detailedLogs = config.detailedLogs !== undefined ? config.detailedLogs : DEFAULT_CONFIG.detailedLogs;
             maxFiles = config.maxFiles || DEFAULT_CONFIG.maxFiles;
-            
+
             console.log('Configuración cargada exitosamente');
             console.log('Modo de consolidación:', consolidationMode);
         } else {
@@ -856,7 +856,7 @@ function loadConfiguration() {
             autoSave = DEFAULT_CONFIG.autoSave;
             detailedLogs = DEFAULT_CONFIG.detailedLogs;
             maxFiles = DEFAULT_CONFIG.maxFiles;
-            
+
             console.log('Usando configuración por defecto');
         }
     } catch (error) {
@@ -879,7 +879,7 @@ function resetConfiguration() {
         rutFilters = [...DEFAULT_CONFIG.rutFilters];
         eliminatedUsersHistory = [];
         persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
-        
+
         updateUI();
         saveConfiguration();
         showNotification('Configuración restablecida', 'success');
@@ -890,7 +890,7 @@ function clearAllFilters() {
     if (confirm('¿Está seguro de eliminar todos los filtros? Esto no afectará el historial de usuarios eliminados.')) {
         emailFilters = [];
         rutFilters = [];
-        
+
         updateUI();
         saveConfiguration(); // Guardado automático
         showNotification('Todos los filtros eliminados', 'success');
@@ -900,7 +900,7 @@ function clearAllFilters() {
 function updateUI() {
     updateEmailFiltersUI();
     updateRutFiltersUI();
-    
+
     // Actualizar radio buttons de consolidación
     const consolidationSeparate = document.getElementById('consolidationSeparate');
     const consolidationSingle = document.getElementById('consolidationSingle');
@@ -936,12 +936,12 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
-    
+
     document.body.appendChild(notification);
-    
+
     // Mostrar animación
     setTimeout(() => notification.classList.add('show'), 100);
-    
+
     // Ocultar después de 3 segundos
     setTimeout(() => {
         notification.classList.remove('show');
@@ -965,11 +965,11 @@ function startBatchProcessing() {
 // Finalizar un batch de procesamiento y guardar en historial
 function finishBatchProcessing() {
     console.log(`Finalizando batch de procesamiento con ${batchEliminatedUsers.length} usuarios eliminados`);
-    
+
     if (batchEliminatedUsers.length > 0) {
         addToEliminatedHistory(batchEliminatedUsers);
     }
-    
+
     isBatchProcessing = false;
     batchEliminatedUsers = [];
 }
@@ -1008,33 +1008,33 @@ window.configFilters = {
         // Ya se ejecutará DOMContentLoaded
         return;
     }
-    
+
     // Si estamos en otras páginas (como calificaciones), solo cargar la configuración
     if (typeof window !== 'undefined') {
         try {
             const savedConfig = localStorage.getItem('aprendo_user_filters_config');
-            
+
             if (savedConfig) {
                 const config = JSON.parse(savedConfig);
                 emailFilters = config.emailFilters || DEFAULT_CONFIG.emailFilters;
                 rutFilters = config.rutFilters || DEFAULT_CONFIG.rutFilters;
                 eliminatedUsersHistory = config.eliminatedUsersHistory || [];
-                persistenceEnabled = config.persistenceEnabled !== undefined ? 
-                                    config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
+                persistenceEnabled = config.persistenceEnabled !== undefined ?
+                    config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
             } else {
                 // Primera vez - usar configuración por defecto
                 emailFilters = [...DEFAULT_CONFIG.emailFilters];
                 rutFilters = [...DEFAULT_CONFIG.rutFilters];
                 eliminatedUsersHistory = [];
                 persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
-                
+
                 // Guardar configuración por defecto automáticamente
                 setTimeout(() => {
                     saveConfiguration();
                     console.log('Configuración por defecto guardada automáticamente');
                 }, 1000);
             }
-            
+
             console.log('Sistema de configuración inicializado automáticamente');
             console.log(`Filtros de email activos: ${emailFilters.filter(f => f.enabled).length}`);
             console.log(`Filtros de RUT activos: ${rutFilters.filter(f => f.enabled).length}`);
