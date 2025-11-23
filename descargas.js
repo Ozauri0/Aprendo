@@ -82,7 +82,7 @@ async function startLoginProcess() {
     const password = passwordInput.value;
 
     if (!username || !password) {
-        alert('Por favor ingrese usuario y contraseña');
+        updateStatus('⚠️ Por favor ingrese usuario y contraseña', 'warning');
         return;
     }
 
@@ -125,7 +125,7 @@ async function startDownloadLoop() {
     const downloadBtn = document.getElementById('downloadBtn');
 
     if (!startId || !endId || startId > endId) {
-        alert('Por favor ingrese un rango de IDs válido.');
+        updateStatus('⚠️ Por favor ingrese un rango de IDs válido.', 'warning');
         return;
     }
 
@@ -226,8 +226,11 @@ async function startDownloadLoop() {
                     log(`   URL: ${currentUrl}`, 'warning');
                     log(`   Título: ${currentTitle}`, 'warning');
 
-                    if (await page.$('#inputName')) {
+                    if (await page.$('#inputName') || currentTitle.includes('Log in') || currentTitle.includes('Entrar')) {
                         log('   ❌ Detectado formulario de login. Sesión perdida.', 'error');
+                        // Force reconnection on next iteration
+                        try { await browser.close(); } catch (e) { }
+                        globalBrowser = null;
                     }
 
                     emptyCount++;
