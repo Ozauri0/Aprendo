@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración - Aprendo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="global-styles.css">
+    <link rel="stylesheet" href="config.css">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header-secondary">
+            <button class="btn-back" onclick="goBack()">
+                <span>←</span> Volver al Inicio
+            </button>
+            <h1>⚙️ Configuración del Sistema</h1>
+            <p>Personaliza los filtros y preferencias de la aplicación</p>
+        </header>
+
+        <main>
+            <!-- Configuración Unificada -->
+            <div class="section-card">
+                <div class="section-header">
+                    <h2>⚙️ Configuración del Sistema</h2>
+                    <p class="section-description">
+                        Todos los cambios se guardan automáticamente. Personaliza los filtros y preferencias de la
+                        aplicación.
+                    </p>
+                </div>
+
+                <!-- Información sobre guardado automático -->
+                <div class="auto-save-info">
+                    <div class="info-card-small">
+                        <span class="info-icon-small">💾</span>
+                        <span class="info-text">Guardado automático activado</span>
+                    </div>
+                </div>
+
+                <!-- Filtros por Correo Electrónico -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h3><span class="section-emoji">📧</span> Filtros por Correo Electrónico</h3>
+                        <span class="section-hint">Excluye usuarios por su dirección de correo</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Agregar correo individual</label>
+                        <div class="input-row">
+                            <input type="email" id="emailInput" placeholder="ejemplo@dominio.com" class="input-field">
+                            <button class="btn btn-primary" onclick="addEmailFilter()">
+                                <span>➕</span> Agregar
+                            </button>
+                        </div>
+
+                        <div class="textarea-section">
+                            <label class="input-label" for="bulkEmailInput">
+                                Agregar múltiples correos
+                                <span class="label-hint">(uno por línea)</span>
+                            </label>
+                            <textarea id="bulkEmailInput" rows="4"
+                                placeholder="correo1@ejemplo.com&#10;correo2@ejemplo.com&#10;usuario@dominio.cl"></textarea>
+                            <button class="btn btn-secondary" onclick="addBulkEmails()">
+                                <span>📋</span> Agregar en Lote
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="filters-list">
+                        <div class="filters-list-header">
+                            <h4>Correos Filtrados</h4>
+                            <span class="count-badge" id="emailCount">0</span>
+                        </div>
+                        <div id="emailFilters" class="filters-container">
+                            <!-- Los filtros de email se agregarán dinámicamente aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros por RUT -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h3><span class="section-emoji">🆔</span> Filtros por RUT</h3>
+                        <span class="section-hint">Excluye usuarios por su número de RUT</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Agregar RUT individual</label>
+                        <div class="input-row">
+                            <input type="text" id="rutInput" placeholder="12.345.678-9 o 12345678-9"
+                                class="input-field">
+                            <button class="btn btn-primary" onclick="addRutFilter()">
+                                <span>➕</span> Agregar
+                            </button>
+                        </div>
+
+                        <div class="textarea-section">
+                            <label class="input-label" for="bulkRutInput">
+                                Agregar múltiples RUTs
+                                <span class="label-hint">(uno por línea)</span>
+                            </label>
+                            <textarea id="bulkRutInput" rows="4"
+                                placeholder="12.345.678-9&#10;98.765.432-1&#10;11222333-4"></textarea>
+                            <button class="btn btn-secondary" onclick="addBulkRuts()">
+                                <span>📋</span> Agregar en Lote
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="filters-list">
+                        <div class="filters-list-header">
+                            <h4>RUTs Filtrados</h4>
+                            <span class="count-badge" id="rutCount">0</span>
+                        </div>
+                        <div id="rutFilters" class="filters-container">
+                            <!-- Los filtros de RUT se agregarán dinámicamente aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reportes de Usuarios Eliminados -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h3><span class="section-emoji">📊</span> Historial de Usuarios Filtrados</h3>
+                        <span class="section-hint">Consulta el registro de usuarios excluidos</span>
+                    </div>
+                    <div class="report-controls">
+                        <button class="btn btn-info" onclick="showEliminatedReport()">
+                            <span>👁️</span> Ver Reporte
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportEliminatedReport()">
+                            <span>💾</span> Exportar
+                        </button>
+                        <button class="btn btn-warning" onclick="clearEliminatedHistory()">
+                            <span>🧹</span> Limpiar Historial
+                        </button>
+                    </div>
+
+                    <div id="eliminatedReport" class="report-container" style="display: none;">
+                        <h4>Últimos Usuarios Excluidos</h4>
+                        <div id="eliminatedList" class="eliminated-list">
+                            <!-- El reporte se mostrará aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuración General -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h3><span class="section-emoji">🔧</span> Preferencias del Sistema</h3>
+                        <span class="section-hint">Ajusta el comportamiento general de la aplicación</span>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">
+                                    <span class="setting-icon">�</span>
+                                    Guardado Automático de Archivos
+                                </label>
+                                <span class="setting-description">Guarda automáticamente los archivos procesados</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="autoSave" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">
+                                    <span class="setting-icon">📝</span>
+                                    Logs Detallados
+                                </label>
+                                <span class="setting-description">Muestra información detallada en la consola</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="detailedLogs" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item full-width">
+                            <div class="setting-info">
+                                <label class="setting-label" for="maxFiles">
+                                    <span class="setting-icon">📁</span>
+                                    Archivos Simultáneos
+                                </label>
+                                <span class="setting-description">Máximo de archivos a procesar al mismo tiempo</span>
+                            </div>
+                            <div class="number-input-group">
+                                <input type="number" id="maxFiles" value="10" min="1" max="50"
+                                    class="input-field number-input">
+                                <span class="number-unit">archivos</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-item full-width">
+                            <div class="setting-info">
+                                <label class="setting-label" for="consolidationMode">
+                                    <span class="setting-icon">📕</span>
+                                    Modo de Consolidación de Informes
+                                </label>
+                                <span class="setting-description">Define cómo se organizará la información al consolidar
+                                    múltiples archivos Excel</span>
+                            </div>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="consolidationMode" value="separate"
+                                        id="consolidationSeparate" checked>
+                                    <div class="radio-content">
+                                        <span class="radio-label">📑 Hojas Separadas</span>
+                                        <span class="radio-description">Cada archivo se guardará en una hoja diferente
+                                            del Excel consolidado</span>
+                                    </div>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="consolidationMode" value="single"
+                                        id="consolidationSingle">
+                                    <div class="radio-content">
+                                        <span class="radio-label">📄 Hoja Única</span>
+                                        <span class="radio-description">Todos los datos se consolidarán en una sola hoja
+                                            continua</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+        </main>
+
+        <footer>
+            <p>Configuración - Aprendo v0.1.0</p>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+</body>
