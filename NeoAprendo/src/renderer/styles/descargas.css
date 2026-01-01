@@ -1,0 +1,454 @@
+/* 
+ * Aprendo UCT - Descargas Page Styles
+ * Estilos específicos para el gestor de descargas
+ */
+
+/* ================= PANEL DE CONTROL ================= */
+.control-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-xl);
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    width: 100%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ================= DISPLAY DE ESTADO ================= */
+.status-display {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+}
+
+.status-icon {
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-icon .icon {
+    width: 20px;
+    height: 20px;
+}
+
+.status-display.status-idle .status-icon {
+    color: var(--text-muted);
+}
+
+.status-display.status-processing .status-icon {
+    color: var(--warning-color);
+}
+
+.status-display.status-processing .status-icon .icon {
+    animation: spin 1s linear infinite;
+}
+
+.status-display.status-success .status-icon {
+    color: var(--success-color);
+}
+
+.status-display.status-success .status-icon .icon {
+    filter: brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(382%) hue-rotate(93deg) brightness(95%) contrast(92%);
+}
+
+.status-display.status-error .status-icon {
+    color: var(--danger-color);
+}
+
+.status-display.status-error .status-icon .icon {
+    filter: brightness(0) saturate(100%) invert(27%) sepia(94%) saturate(2147%) hue-rotate(344deg) brightness(91%) contrast(89%);
+}
+
+.status-display.status-warning .status-icon {
+    color: var(--warning-color);
+}
+
+.status-display.status-warning .status-icon .icon {
+    filter: brightness(0) saturate(100%) invert(67%) sepia(74%) saturate(491%) hue-rotate(5deg) brightness(101%) contrast(94%);
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ================= BOTÓN GRANDE ================= */
+.btn-large {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* ================= CONTENEDOR DE BOTONES CENTRADO ================= */
+.action-buttons-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: var(--spacing-md);
+}
+
+/* ================= SECCIONES DE LOGIN Y DESCARGAS ================= */
+.login-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.range-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.range-section h3 {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    justify-content: center;
+}
+
+/* ================= GRUPO DE INPUT ================= */
+.input-group {
+    width: 100%;
+    margin-bottom: var(--spacing-lg);
+}
+
+.input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.input-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-left: var(--spacing-xs);
+}
+
+.input-field {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: all var(--transition-fast);
+    outline: none;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.input-field:focus {
+    border-color: var(--uct-accent);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* ================= CREDENCIALES ================= */
+.credentials-section {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    width: 100%;
+}
+
+.credentials-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.credentials-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.credentials-row {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.credentials-row .input-wrapper {
+    flex: 1;
+}
+
+/* ================= PROGRESO DE DESCARGA ================= */
+.download-progress {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.download-progress h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+}
+
+.progress-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.progress-stat {
+    text-align: center;
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.progress-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--uct-primary);
+}
+
+.progress-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-top: var(--spacing-xs);
+}
+
+/* ================= LISTA DE DESCARGAS ================= */
+.downloads-list {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.downloads-header {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.downloads-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.downloads-count {
+    background: var(--uct-primary);
+    color: var(--text-inverse);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.downloads-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.download-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    gap: var(--spacing-md);
+    transition: background var(--transition-fast);
+}
+
+.download-item:last-child {
+    border-bottom: none;
+}
+
+.download-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.download-icon {
+    font-size: 1.5rem;
+    color: var(--uct-primary);
+}
+
+.download-info {
+    flex: 1;
+}
+
+.download-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.download-meta {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.download-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.download-status.pending {
+    background: var(--warning-bg);
+    color: var(--warning-color);
+}
+
+.download-status.downloading {
+    background: var(--info-bg);
+    color: var(--info-color);
+}
+
+.download-status.completed {
+    background: var(--success-bg);
+    color: var(--success-color);
+}
+
+.download-status.error {
+    background: var(--danger-bg);
+    color: var(--danger-color);
+}
+
+/* ================= LOGS DE DESCARGA ================= */
+.log-info {
+    color: var(--info-color);
+}
+
+.log-success {
+    color: var(--success-color);
+}
+
+.log-warning {
+    color: var(--warning-color);
+}
+
+.log-error {
+    color: var(--danger-color);
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 768px) {
+    .control-panel {
+        padding: var(--spacing-lg);
+    }
+    
+    .credentials-row {
+        flex-direction: column;
+    }
+    
+    .progress-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .btn-large {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ================= TEMA OSCURO - AJUSTES ================= */
+[data-theme="dark"] .control-panel {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .status-display {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .credentials-section {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .input-field {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .input-field::placeholder {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .download-progress {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .progress-stat {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .progress-stat-value {
+    color: var(--uct-accent);
+}
+
+[data-theme="dark"] .downloads-list {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .downloads-header {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .download-item:hover {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .download-icon {
+    color: var(--uct-accent);
+}
+
+/* ================= ACTIVITY LOG ================= */
+.activity-log {
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    scroll-behavior: smooth;
+}
+
+[data-theme="dark"] .activity-log {
+    background: var(--bg-secondary);
+}

@@ -1,0 +1,51 @@
+{
+  "name": "neo-aprendo",
+  "version": "1.0.0",
+  "description": "Reescritura de Aprendo en Electron + TypeScript",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build:assets": "copyfiles -u 3 \"src/renderer/pages/**/*.html\" dist/renderer && copyfiles -u 3 \"src/renderer/styles/**/*.css\" dist/renderer && copyfiles -u 2 \"src/renderer/assets/**/*\" dist/renderer",
+    "build": "npm run clean && npm run build:assets && tsc -p .",
+    "dev": "npm run build && electron .",
+    "start": "npm run dev"
+  },
+  "author": "Christian Ferrer",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "copyfiles": "^2.4.1",
+    "electron": "^38.0.0",
+    "electron-builder": "^25.1.8",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "lucide-static": "^0.562.0",
+    "puppeteer": "^24.31.0",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.aprendo.app",
+    "productName": "Aprendo",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}
