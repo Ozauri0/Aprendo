@@ -1,10 +1,6 @@
 # Ignorar node_modules en todo el proyecto
 node_modules/
 
-# Ignorar archivos de build en legacy
-legacy/dist/
-legacy/build/
-legacy/*.log
 
 # Ignorar archivos temporales
 *.tmp

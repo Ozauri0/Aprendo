@@ -1,0 +1,241 @@
+/* 
+ * Aprendo UCT - Informes Page Styles
+ * Estilos específicos para la página de informes
+ */
+
+/* Los estilos de log y resultados se comparten con calificaciones */
+/* Aquí van estilos específicos adicionales para informes */
+
+/* ================= SECCIÓN DE CONSOLIDACIÓN ================= */
+.consolidation-info {
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.consolidation-info h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--info-color);
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.consolidation-info p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ================= ESTADÍSTICAS DE INFORMES ================= */
+.report-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.report-stat-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    transition: all var(--transition-fast);
+}
+
+.report-stat-card:hover {
+    border-color: var(--uct-primary);
+}
+
+.report-stat-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.7;
+}
+
+.report-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--uct-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.report-stat-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* ================= PREVIEW DE DATOS ================= */
+.data-preview {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: var(--spacing-lg);
+}
+
+.data-preview-header {
+    background: var(--bg-card);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.data-preview-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.data-preview-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.data-preview-content {
+    max-height: 300px;
+    overflow: auto;
+    padding: var(--spacing-md);
+}
+
+.data-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.data-preview th,
+.data-preview td {
+    padding: var(--spacing-sm);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.data-preview th {
+    background: var(--bg-card);
+    font-weight: 600;
+    color: var(--text-primary);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.data-preview tr:hover td {
+    background: var(--bg-card-hover);
+}
+
+/* ================= FILTROS DE INFORMES ================= */
+.report-filters {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.filter-row {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.filter-select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--uct-accent);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 768px) {
+    .report-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .filter-row {
+        flex-direction: column;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .report-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ================= TEMA OSCURO - AJUSTES ================= */
+[data-theme="dark"] .consolidation-info {
+    background: rgba(56, 189, 248, 0.1);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+[data-theme="dark"] .consolidation-info h3 {
+    color: var(--info-color);
+}
+
+[data-theme="dark"] .report-stat-card {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .report-stat-value {
+    color: var(--uct-accent);
+}
+
+[data-theme="dark"] .data-preview {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .data-preview-header {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .data-preview th {
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .report-filters {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .filter-select {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
