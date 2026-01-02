@@ -1,10 +1,40 @@
+# 📚 Aprendo - Sistema de Gestión de Calificaciones (Legado)
+
+Este proyecto ha sido marcado como **legado** y su desarrollo ha concluido. Una nueva versión mejorada está disponible en la rama `main`.
+
+---
+
+## ℹ️ Información del Proyecto
+
+- **Estado**: Desarrollo finalizado
+- **Versión actual**: v0.1.0 (última versión de esta rama)
+- **Nueva versión**: Disponible en la rama `main`
+
+---
+
+## 🚀 Nueva Versión
+
+La nueva versión incluye mejoras significativas en rendimiento, diseño y funcionalidad. Para acceder a la nueva versión, cambia a la rama `main`:
+
+```bash
+# Cambiar a la rama main
+git checkout main
+```
+
+---
+
+## 📄 Documentación Original
+
+A continuación, se mantiene la documentación original de este proyecto para referencia histórica:
+
+---
+
 # 📚 Aprendo - Sistema de Gestión de Calificaciones
 
-> Aplicación Electron moderna para procesar calificaciones y consolidar informes
+Aplicación desarrollada en Electron, moderna para procesar calificaciones y consolidar informes
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
-![Electron](https://img.shields.io/badge/electron-latest-brightgreen)
-![Status](https://img.shields.io/badge/status-production-success)
+![Electron](https://img.shields.io/badge/electron-Latest-blue)
+![Status](https://img.shields.io/badge/status-Development-yellow)
 
 ---
 
@@ -35,42 +65,6 @@ npm start
 ```
 
 ---
-
-## 📱 Capturas de Pantalla
-
-### Página Principal
-- Dashboard con acceso a todas las funcionalidades
-- Estado del sistema en tiempo real
-- Diseño limpio y profesional
-
-### Procesar Calificaciones
-- Área de carga drag & drop
-- Visualización de archivos seleccionados
-- Barra de progreso en tiempo real
-- Logs detallados del proceso
-- Descarga de resultados
-
-### Consolidar Informes
-- Misma experiencia que Calificaciones
-- Interfaz consistente y familiar
-- Procesamiento eficiente
-
----
-
-## 🎨 Sistema de Diseño
-
-La aplicación cuenta con un **sistema de diseño completo** y documentado.
-
-### Documentación Disponible:
-
-| Archivo | Descripción |
-|---------|-------------|
-| **`QUICK-START.md`** | Guía rápida para empezar |
-| **`DESIGN.md`** | Sistema de diseño completo |
-| **`README-CHANGES.md`** | Registro de cambios detallado |
-| **`BEFORE-AFTER.md`** | Comparación antes/después |
-| **`components.html`** | Guía visual de componentes |
-| **`SUMMARY.md`** | Resumen ejecutivo |
 
 ### Paleta de Colores:
 
@@ -103,25 +97,19 @@ Abre `components.html` en tu navegador para ver todos los componentes disponible
 aprendo/
 ├── 📄 index.html              # Página principal
 ├── 📄 calificaciones.html     # Página de calificaciones
-├── 📄 informes.html          # Página de informes
-├── 📄 components.html        # Guía de componentes
+├── 📄 informes.html           # Página de informes
+├── 📄 components.html         # Guía de componentes
 │
 ├── 🎨 styles.css             # Estilos principales
 ├── 🎨 global-styles.css      # Utilidades y extras
 ├── 🎨 calificaciones.css     # Estilos específicos (reservado)
-├── 🎨 informes.css          # Estilos específicos (reservado)
+├── 🎨 informes.css           # Estilos específicos (reservado)
 │
 ├── 📜 main.js                # Proceso principal de Electron
 ├── 📜 renderer.js            # Renderer de la página principal
 ├── 📜 calificaciones.js      # Lógica de calificaciones
-├── 📜 informes.js           # Lógica de informes
+├── 📜 informes.js            # Lógica de informes
 ├── 📜 start-electron.js      # Script de inicio
-│
-├── 📚 DESIGN.md              # Documentación de diseño
-├── 📚 README-CHANGES.md      # Registro de cambios
-├── 📚 BEFORE-AFTER.md        # Comparación visual
-├── 📚 QUICK-START.md         # Guía rápida
-├── 📚 SUMMARY.md             # Resumen ejecutivo
 │
 └── 📦 package.json           # Dependencias y scripts
 ```
@@ -135,7 +123,7 @@ aprendo/
 Accede a las diferentes funcionalidades:
 - **Procesar Calificaciones**: Importa y procesa archivos Excel
 - **Consolidar Informes**: Consolida logs y reportes
-- **Configuración**: (Próximamente)
+- **Configuración**: Configura filtros para eliminación de academicos/ayudantes de la consolidación de notas. 
 
 ### 2. Procesar Calificaciones
 
@@ -153,58 +141,24 @@ Similar a Procesar Calificaciones:
 2. Selecciona archivos Excel
 3. Procesa y descarga resultados
 
+### 4. Descargar notas
+
+1. Haz clic en "Gestor de Descargas"
+2. Inicia sesión con tus credenciales de la plataforma APRENDO
+3. Selecciona el rango de id's de cursos para iniciar la descarga masiva
+4. Haz clic en Comenzar Descargas
 ---
 
-## 🎨 Personalización
-
-### Cambiar Colores
-
-Edita las variables CSS en `styles.css`:
-
-```css
-:root {
-    --primary-color: #2563eb;    /* Cambia esto */
-    --secondary-color: #64748b;  /* Y esto */
-    /* ... más variables ... */
-}
-```
-
-### Agregar Nuevos Componentes
-
-1. Revisa `components.html` para ver ejemplos
-2. Usa las clases CSS existentes
-3. Mantén la consistencia con el diseño actual
-
----
 
 ## 🧪 Testing
 
 ```bash
 # Ejecutar en modo desarrollo
-npm start
+npm run dev
 
 # Construir para producción
 npm run build
 ```
-
----
-
-## 📈 Roadmap
-
-### Versión Actual (v0.2.0)
-- ✅ Diseño moderno y minimalista
-- ✅ Consistencia total entre páginas
-- ✅ Sistema de diseño documentado
-- ✅ Responsive design
-- ✅ Accesibilidad mejorada
-
-### Próximas Versiones
-- [ ] Modo oscuro/claro toggle
-- [ ] Configuración personalizable
-- [ ] Exportar a múltiples formatos
-- [ ] Historial de procesamiento
-- [ ] Estadísticas y gráficos
-- [ ] Soporte para más formatos de archivo
 
 ---
 
@@ -228,25 +182,6 @@ Verifica que los archivos CSS estén en la ubicación correcta y los links en HT
 
 ---
 
-## 🤝 Contribuir
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-### Guías de Estilo
-
-- Usa las variables CSS existentes
-- Mantén la consistencia con el diseño actual
-- Documenta tus cambios
-- Sigue las convenciones de código
-
----
-
 ## 📄 Licencia
 
 Este proyecto es privado y de uso interno.
@@ -256,50 +191,6 @@ Este proyecto es privado y de uso interno.
 ## 👨‍💻 Autor
 
 **Christian Ferrer**
-
----
-
-## 📞 Soporte
-
-Para soporte o preguntas:
-
-1. Revisa la documentación en `/docs`
-2. Abre un issue en el repositorio
-3. Contacta al desarrollador
-
----
-
-## 🎉 Agradecimientos
-
-- Diseño inspirado en las mejores prácticas de UI/UX
-- Sistema de colores basado en Tailwind CSS
-- Iconos de emoji para una interfaz amigable
-
----
-
-## 📝 Changelog
-
-### v0.2.0 (Octubre 2025)
-- ✨ Rediseño completo de la interfaz
-- ✨ Sistema de diseño unificado
-- ✨ Consistencia total entre páginas
-- ✨ Documentación completa
-- ✨ Responsive design mejorado
-- ✨ Accesibilidad WCAG
-
-### v0.1.0 (Inicial)
-- 🎉 Versión inicial
-- 📊 Procesamiento de calificaciones
-- 📈 Consolidación de informes
-
----
-
-## 🔗 Enlaces Útiles
-
-- [Documentación Completa](./DESIGN.md)
-- [Guía Rápida](./QUICK-START.md)
-- [Componentes Visuales](./components.html)
-- [Registro de Cambios](./README-CHANGES.md)
 
 ---
 
