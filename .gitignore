@@ -8,8 +8,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Ignorar archivos de build en NeoAprendo
-NeoAprendo/build/
-NeoAprendo/dist/
-NeoAprendo/out/
-NeoAprendo/*.log
+dist/
+build/
+main/
+renderer/
