@@ -354,7 +354,7 @@ function renderHomePage() {
                 <div class="footer-brand">
                     <span>Universidad Católica de Temuco</span>
                 </div>
-                <p>Aprendo UCT v1.0.0 - Desarrollado por Christian Ferrer</p>
+                <p>Aprendo UCT v1.0.1 - Desarrollado por Christian Ferrer</p>
             </footer>
         </div>`;
         initializeApp();

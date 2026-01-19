@@ -323,6 +323,12 @@ function removeFile(index) {
     const removedFile = selectedFiles.splice(index, 1)[0];
     logMessage(`Archivo removido: ${removedFile.name}`, 'info');
     updateFileList();
+    
+    // Resetear file input para permitir re-subir el mismo archivo si se desea
+    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = '';
+    }
 }
 
 // Limpiar lista de archivos

@@ -350,6 +350,12 @@ function removeFile(index) {
     selectedFiles.splice(index, 1);
     logMessage(`Archivo quitado: ${removedFile.name}`, 'info');
     updateFileList();
+
+     // Resetear file input para permitir re-subir el mismo archivo si se desea
+    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = '';
+    }
 }
 
 // Limpiar lista de archivos
@@ -703,33 +709,33 @@ function showResults(results) {
     // Mostrar detalles de archivos procesados
     showProcessedFilesList(results);
     
-    // Generar botón de descarga prominente
+    // Generar botones de descarga prominentes
     let downloadHTML = `
         <h3 style="margin-bottom: 15px; color: var(--success-color); font-size: 1.5rem; text-align: center;">
-            ¡Informes Consolidados Listos!
+            ¡Archivos Procesados y Listos para Descargar!
         </h3>
         <p class="success-message" style="text-align: center; margin: 15px auto; max-width: 600px;">
-            ${getIcon('check-circle', 20)} <strong>Consolidación Completada:</strong> Los archivos de informes han sido consolidados exitosamente. 
-            Cada archivo original ahora es una hoja separada en el archivo Excel consolidado, ordenadas por número de curso.
+            ${getIcon('check-circle', 20)} <strong>Procesamiento Completado:</strong> Los archivos han sido consolidados exitosamente. 
+            Cada archivo original se convirtió en una hoja separada del Excel final.
         </p>
+        <div style="display: flex; flex-direction: column; gap: 20px; align-items: center; margin-top: 30px;">
     `;
     
     if (processedData.consolidatedFile) {
         downloadHTML += `
-            <div style="display: flex; justify-content: center; margin: 30px 0;">
-                <a href="${processedData.consolidatedFile.url}" 
-                   download="${processedData.consolidatedFile.fileName}" 
-                   class="download-btn">
-                    <span class="download-icon">${getIcon('download', 24)}</span>
-                    <div class="download-content">
-                        <div class="download-title">Descargar Informes Consolidados</div>
-                        <div class="download-subtitle">${processedData.consolidatedFile.fileName}</div>
-                    </div>
-                </a>
-            </div>
+            <a href="${processedData.consolidatedFile.url}" 
+               download="${processedData.consolidatedFile.fileName}" 
+               class="download-btn">
+                <span class="download-icon">${getIcon('chart-bar', 24)}</span>
+                <div class="download-content">
+                    <div class="download-title">Descargar Informes Consolidados</div>
+                    <div class="download-subtitle">${processedData.consolidatedFile.fileName}</div>
+                </div>
+            </a>
         `;
     }
     
+    downloadHTML += '</div>';
     downloadArea.innerHTML = downloadHTML;
 }
 

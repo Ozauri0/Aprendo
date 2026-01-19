@@ -1,6 +1,9 @@
 # Ignorar node_modules en todo el proyecto
 node_modules/
 
+# Ignorar carpeta dist
+dist/
+dist/renderer
 
 # Ignorar archivos temporales
 *.tmp

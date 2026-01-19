@@ -239,3 +239,13 @@
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
+
+[data-theme="dark"] .download-area {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .download-link {
+    background: var(--uct-primary);
+    border-color: var(--uct-primary);
+}
