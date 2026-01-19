@@ -373,6 +373,88 @@ function showConfirmModal(message, onConfirm, onCancel) {
     // Enfocar el botón de confirmar
     confirmBtn.focus();
 }
+// ================= MODAL DE ALERTA PERSONALIZADO =================
+// Reemplaza alert() nativo que causa problemas de foco en Electron
+function showAlertModal(message, type = 'info') {
+    const modalOverlay = document.createElement('div');
+    modalOverlay.id = 'alertModal';
+    modalOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    const modalBox = document.createElement('div');
+    modalBox.style.cssText = `
+        background: var(--bg-card, #fff);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border-color, #e0e0e0);
+    `;
+    const messageEl = document.createElement('p');
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+        margin: 0 0 20px 0;
+        font-size: 1rem;
+        color: var(--text-primary, #333);
+        text-align: center;
+        line-height: 1.5;
+    `;
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.style.cssText = `
+        display: flex;
+        justify-content: center;
+    `;
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'Aceptar';
+    // Colores según el tipo de alerta
+    let btnColor = 'var(--uct-primary, #0066cc)';
+    if (type === 'success')
+        btnColor = 'var(--success-color, #28a745)';
+    if (type === 'warning')
+        btnColor = 'var(--warning-color, #ffc107)';
+    if (type === 'error')
+        btnColor = 'var(--danger-color, #dc3545)';
+    okBtn.style.cssText = `
+        padding: 10px 32px;
+        border: none;
+        background: ${btnColor};
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        font-weight: 600;
+    `;
+    const closeModal = () => {
+        modalOverlay.remove();
+    };
+    okBtn.onclick = closeModal;
+    // Cerrar con Escape o Enter
+    const handleKeydown = (e) => {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+            closeModal();
+            document.removeEventListener('keydown', handleKeydown);
+        }
+    };
+    document.addEventListener('keydown', handleKeydown);
+    buttonsDiv.appendChild(okBtn);
+    modalBox.appendChild(messageEl);
+    modalBox.appendChild(buttonsDiv);
+    modalOverlay.appendChild(modalBox);
+    document.body.appendChild(modalOverlay);
+    // Enfocar el botón de aceptar
+    okBtn.focus();
+}
 // Configuración por defecto (migrada del sistema básico)
 const DEFAULT_CONFIG = {
     emailFilters: [
@@ -495,7 +577,7 @@ function addEmailFilter() {
     const input = document.getElementById('emailInput');
     const email = input.value.trim();
     if (!email) {
-        alert('Por favor ingrese un correo electrónico válido');
+        showAlertModal('Por favor ingrese un correo electrónico válido', 'warning');
         return;
     }
     if (addSingleEmailFilter(email)) {
@@ -515,7 +597,7 @@ function addBulkEmails() {
         .map(email => email.trim())
         .filter(email => email.length > 0);
     if (emails.length === 0) {
-        alert('Por favor ingrese al menos un correo electrónico');
+        showAlertModal('Por favor ingrese al menos un correo electrónico', 'warning');
         return;
     }
     let addedCount = 0;
@@ -527,20 +609,20 @@ function addBulkEmails() {
     textarea.value = '';
     updateEmailFiltersUI();
     if (addedCount > 0) {
-        alert(`Se agregaron ${addedCount} filtros de correo`);
+        showAlertModal(`Se agregaron ${addedCount} filtros de correo`, 'success');
         saveConfiguration(); // Guardado automático
     }
 }
 function addSingleEmailFilter(email) {
     // Validar formato de email básico
     if (!validateEmail(email)) {
-        alert(`Formato de correo inválido: ${email}`);
+        showAlertModal(`Formato de correo inválido: ${email}`, 'error');
         return false;
     }
     // Verificar duplicados
     const exists = emailFilters.some(filter => filter.pattern.toLowerCase() === email.toLowerCase());
     if (exists) {
-        alert(`El correo ${email} ya está en la lista de filtros`);
+        showAlertModal(`El correo ${email} ya está en la lista de filtros`, 'warning');
         return false;
     }
     // Agregar filtro
@@ -621,7 +703,7 @@ function addRutFilter() {
     const input = document.getElementById('rutInput');
     const rut = input.value.trim();
     if (!rut) {
-        alert('Por favor ingrese un RUT válido');
+        showAlertModal('Por favor ingrese un RUT válido', 'warning');
         return;
     }
     if (addSingleRutFilter(rut)) {
@@ -641,7 +723,7 @@ function addBulkRuts() {
         .map(rut => rut.trim())
         .filter(rut => rut.length > 0);
     if (ruts.length === 0) {
-        alert('Por favor ingrese al menos un RUT');
+        showAlertModal('Por favor ingrese al menos un RUT', 'warning');
         return;
     }
     let addedCount = 0;
@@ -653,20 +735,20 @@ function addBulkRuts() {
     textarea.value = '';
     updateRutFiltersUI();
     if (addedCount > 0) {
-        alert(`Se agregaron ${addedCount} filtros de RUT`);
+        showAlertModal(`Se agregaron ${addedCount} filtros de RUT`, 'success');
         saveConfiguration(); // Guardado automático
     }
 }
 function addSingleRutFilter(rut) {
     const normalizedRut = normalizeRut(rut);
     if (!validateRut(normalizedRut)) {
-        alert(`RUT inválido: ${rut}`);
+        showAlertModal(`RUT inválido: ${rut}`, 'error');
         return false;
     }
     // Verificar duplicados
     const exists = rutFilters.some(filter => filter.pattern === normalizedRut);
     if (exists) {
-        alert(`El RUT ${rut} ya está en la lista de filtros`);
+        showAlertModal(`El RUT ${rut} ya está en la lista de filtros`, 'warning');
         return false;
     }
     // Agregar filtro
@@ -994,7 +1076,7 @@ function showEliminatedReport() {
 }
 function exportEliminatedReport() {
     if (eliminatedUsersHistory.length === 0) {
-        alert('No hay reportes para exportar');
+        showAlertModal('No hay reportes para exportar', 'info');
         return;
     }
     const data = {
