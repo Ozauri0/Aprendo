@@ -7,7 +7,7 @@
     "clean": "rimraf dist",
     "build:assets": "copyfiles -u 3 \"src/renderer/pages/**/*.html\" dist/renderer && copyfiles -u 3 \"src/renderer/styles/**/*.css\" dist/renderer && copyfiles -u 2 \"src/renderer/assets/**/*\" dist/renderer",
     "build": "npm run clean && npm run build:assets && tsc -p .",
-    "dev": "npm run build && electron .",
+    "dev": "npm run build && electron . --no-sandbox",
     "start": "npm run dev"
   },
   "author": "Christian Ferrer",
