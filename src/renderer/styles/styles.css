@@ -1540,6 +1540,18 @@ footer p {
     line-height: 1.6;
 }
 
+footer .footer-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+footer .footer-link:hover {
+    color: var(--text-secondary);
+    border-bottom-color: var(--text-muted);
+}
+
 footer .footer-brand {
     display: flex;
     align-items: center;
