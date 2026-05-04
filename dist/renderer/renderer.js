@@ -34,16 +34,14 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.injectStylesFromFiles = injectStylesFromFiles;
-// @ts-nocheck
 // renderer.ts - Lógica del frontend de la aplicación
-const calificaciones = require('./calificaciones');
-const informes = require('./informes');
-const config = require('./config');
-const descargas = require('./descargas');
-const { icons, getIcon, iconSpan } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
-const fs = require('fs');
-const path = require('path');
+const calificaciones = __importStar(require("./calificaciones"));
+const informes = __importStar(require("./informes"));
+const config = __importStar(require("./config"));
+const descargas = __importStar(require("./descargas"));
+const icons_1 = require("./icons");
+const header_1 = require("./components/header");
+const title_bar_1 = require("./components/title-bar");
 // Esperar a que el DOM esté cargado
 document.addEventListener('DOMContentLoaded', () => {
     try {
@@ -278,97 +276,95 @@ function logMessage(message, level = 'info') {
 }
 // Render del markup de la página principal directamente desde TS
 function renderHomePage() {
-    document.title = 'Aprendo UCT - Sistema de Gestión de Calificaciones';
+    document.title = 'Aprendo UCT — Sistema de Consolidación de Calificaciones';
     // Asegurar enlaces a estilos si se renderiza en un HTML mínimo
     injectStylesFromFiles([
         'styles.css',
         'global-styles.css'
     ]);
     // Aplicar tema guardado
-    applyStoredTheme();
+    (0, header_1.applyStoredTheme)();
     document.body.innerHTML = `
+    ${(0, title_bar_1.renderTitleBar)('Aprendo UCT', 'Sistema de Consolidación de Calificaciones')}
+    <div class="page-scroll">
         <div class="container">
-            ${renderHeader({
+            ${(0, header_1.renderHeader)({
         title: 'Aprendo UCT',
-        subtitle: 'Sistema de Gestión de Calificaciones',
+        subtitle: 'Sistema de Consolidación de Calificaciones',
         isHomePage: true,
         showConfigButton: true
     })}
 
-            <main>
-                <div class="welcome-section">
-                    <h2>¡Bienvenido!</h2>
-                    <p>Plataforma integral para la gestión de calificaciones y reportes académicos de la Universidad Católica de Temuco.</p>
-                </div>
-
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('chart-bar', 48)}</div>
-                        <h3>Consolidar Calificaciones</h3>
-                        <p>Consolida y procesa archivos de calificaciones Excel de manera eficiente</p>
-                        <button class="btn btn-primary" onclick="openCalificaciones()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Abrir Módulo
-                        </button>
+                <main>
+                    <div class="welcome-section">
+                        <h2>¡Bienvenido!</h2>
+                        <p>Plataforma integral para la gestión de calificaciones y reportes académicos DGIA de la Universidad Católica de Temuco.</p>
                     </div>
 
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('chart-line', 48)}</div>
-                        <h3>Consolidar Informes</h3>
-                        <p>Consolida archivos de logs e informes de actividad en un solo Excel</p>
-                        <button class="btn btn-primary" onclick="openInformes()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Consolidar
-                        </button>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">${(0, icons_1.getIcon)('chart-bar', 48)}</div>
+                            <h3>Consolidar Calificaciones</h3>
+                            <p>Consolida y procesa archivos de calificaciones Excel de manera eficiente</p>
+                            <button class="btn btn-primary" onclick="openCalificaciones()">
+                                <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
+                                Abrir Módulo
+                            </button>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">${(0, icons_1.getIcon)('chart-line', 48)}</div>
+                            <h3>Consolidar Informes</h3>
+                            <p>Consolida archivos de logs e informes de actividad en un solo Excel</p>
+                            <button class="btn btn-primary" onclick="openInformes()">
+                                <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
+                                Consolidar
+                            </button>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">${(0, icons_1.getIcon)('download', 48)}</div>
+                            <h3>Gestor de Descargas</h3>
+                            <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
+                            <button class="btn btn-primary" onclick="openDescargas()">
+                                <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
+                                Descargar
+                            </button>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">${(0, icons_1.getIcon)('settings', 48)}</div>
+                            <h3>Configuración</h3>
+                            <p>Personaliza parámetros y preferencias del sistema</p>
+                            <button class="btn btn-secondary" onclick="openConfig()">
+                                <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
+                                Configurar
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('download', 48)}</div>
-                        <h3>Gestor de Descargas</h3>
-                        <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
-                        <button class="btn btn-primary" onclick="openDescargas()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Descargar
-                        </button>
-                    </div>
-
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('settings', 48)}</div>
-                        <h3>Configuración</h3>
-                        <p>Personaliza parámetros y preferencias del sistema</p>
-                        <button class="btn btn-secondary" onclick="openConfig()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Configurar
-                        </button>
-                    </div>
-                </div>
-
-            </main>
-        </div>
-
-        <footer>
-            <div class="footer-brand">
-                <span>Universidad Católica de Temuco</span>
+                </main>
             </div>
-            <div class="footer-divider"></div>
-            <p>Aprendo UCT v1.0.0 &mdash; Desarrollado por Christian Ferrer</p>
-        </footer>`;
+
+            <footer>
+                <div class="footer-brand">
+                    <span>Universidad Católica de Temuco</span>
+                </div>
+                <div class="footer-divider"></div>
+                <p>Aprendo UCT v1.0.0 &mdash; Desarrollado por Christian Ferrer</p>
+            </footer>
+        </div>`;
     initializeApp();
+    (0, title_bar_1.setupTitleBarActions)();
 }
-// Inyecta CSS leyendo archivos locales (evita depender de <link> en HTML)
+// Inyecta CSS como <link> relativos (funciona en file:// sin dependencias de Node)
 function injectStylesFromFiles(files) {
     const head = document.head;
     files.forEach((file) => {
-        try {
-            const cssPath = path.join(__dirname, file);
-            const cssContent = fs.readFileSync(cssPath, 'utf-8');
-            const styleEl = document.createElement('style');
-            styleEl.textContent = cssContent;
-            head.appendChild(styleEl);
-        }
-        catch (err) {
-            console.warn(`[styles] No se pudo cargar ${file}:`, err);
-        }
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = file;
+        head.appendChild(link);
     });
 }
 // Funciones de tema claro/oscuro
@@ -378,6 +374,12 @@ function toggleTheme() {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('aprendo-theme', newTheme);
+    // Sincronizar backgroundColor de la ventana para que coincida con el tema
+    try {
+        const { ipcRenderer } = require('electron');
+        ipcRenderer.send('window:set-background', newTheme === 'dark' ? '#0f172a' : '#f8fafc');
+    }
+    catch (_e) { }
 }
 // Exportar funciones para uso global
 window.openCalificaciones = openCalificaciones;

@@ -1,8 +1,9 @@
-// @ts-nocheck
 // calificaciones.ts - Lógica para procesar archivos de calificaciones
 import './config';
-const { getIcon } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
+import { getIcon } from './icons';
+import { renderHeader, applyStoredTheme } from './components/header';
+import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
+import ExcelJS from 'exceljs';
 
 // Variables globales
 let selectedFiles: File[] = [];
@@ -37,86 +38,89 @@ export function renderCalificacionesPage(
     applyStoredTheme();
 
     document.body.innerHTML = `
-    <div class="container">
-        ${renderHeader({
-            title: 'Consolidar Calificaciones',
-            subtitle: 'Importa y consolida archivos Excel de calificaciones',
-            showBackButton: true,
-            showConfigButton: true
-        })}
+    ${renderTitleBar('Consolidar Calificaciones')}
+    <div class="page-scroll">
+        <div class="container">
+            ${renderHeader({
+                title: 'Consolidar Calificaciones',
+                subtitle: 'Importa y consolida archivos Excel de calificaciones',
+                showBackButton: true,
+                showConfigButton: true
+            })}
 
-        <main>
-            <div class="upload-section">
-                <h2>Subir Archivos</h2>
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-content">
-                        <span class="upload-icon">${getIcon('folder-open', 48)}</span>
-                        <h3>Arrastra archivos Excel aquí</h3>
-                        <p>o haz clic para seleccionar (máximo 60 archivos)</p>
-                        <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;">
-                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                            ${getIcon('upload', 18)} Seleccionar Archivos
-                        </button>
+            <main>
+                <div class="upload-section">
+                    <h2>Subir Archivos</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <span class="upload-icon">${getIcon('folder-open', 48)}</span>
+                            <h3>Arrastra archivos Excel aquí</h3>
+                            <p>o haz clic para seleccionar (máximo 60 archivos)</p>
+                            <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;">
+                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                ${getIcon('upload', 18)} Seleccionar Archivos
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="file-info" id="fileInfo" style="display: none;">
+                        <h3>Archivos seleccionados: <span id="fileCount">0</span></h3>
+                        <p class="file-requirement" id="fileRequirement">Se necesitan al menos 2 archivos para procesar</p>
+                        <div class="file-list" id="fileList"></div>
+                        <div class="process-controls">
+                            <button class="btn btn-success" id="processBtn" onclick="processFiles()" disabled>
+                                ${getIcon('play', 18)} Procesar Archivos (<span id="btnFileCount">0</span>)
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearFiles()">
+                                ${getIcon('trash', 18)} Limpiar Lista
+                            </button>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="file-info" id="fileInfo" style="display: none;">
-                    <h3>Archivos seleccionados: <span id="fileCount">0</span></h3>
-                    <p class="file-requirement" id="fileRequirement">Se necesitan al menos 2 archivos para procesar</p>
-                    <div class="file-list" id="fileList"></div>
-                    <div class="process-controls">
-                        <button class="btn btn-success" id="processBtn" onclick="processFiles()" disabled>
-                            ${getIcon('play', 18)} Procesar Archivos (<span id="btnFileCount">0</span>)
-                        </button>
-                        <button class="btn btn-secondary" onclick="clearFiles()">
-                            ${getIcon('trash', 18)} Limpiar Lista
-                        </button>
+
+                <div class="processing-section" id="processingSection" style="display: none;">
+                    <h2>Procesando...</h2>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressText">Preparando...</span>
+                        <span id="progressPercent">0%</span>
                     </div>
                 </div>
-            </div>
 
-            <div class="processing-section" id="processingSection" style="display: none;">
-                <h2>Procesando...</h2>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
+                <div class="log-section">
+                    <h2>Registro de Actividad</h2>
+                    <div class="log-container" id="logContainer">
+                        <!-- Los logs aparecerán aquí -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="clearLog()">
+                        ${getIcon('trash', 16)} Limpiar Log
+                    </button>
                 </div>
-                <div class="progress-text">
-                    <span id="progressText">Preparando...</span>
-                    <span id="progressPercent">0%</span>
-                </div>
-            </div>
 
-            <div class="log-section">
-                <h2>Registro de Actividad</h2>
-                <div class="log-container" id="logContainer">
-                    <!-- Los logs aparecerán aquí -->
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="clearLog()">
-                    ${getIcon('trash', 16)} Limpiar Log
-                </button>
-            </div>
-
-            <div class="results-section" id="resultsSection" style="display: none;">
-                <h2>${getIcon('check-circle', 24)} Procesamiento Completado</h2>
-                <div class="results-summary" id="resultsSummary">
-                    <!-- Los resultados se mostrarán aquí -->
-                </div>
-                <div class="processed-files-section" id="processedFilesSection">
-                    <h3>Archivos Procesados</h3>
-                    <div class="processed-files-list" id="processedFilesList">
-                        <!-- Lista de archivos procesados -->
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <h2>${getIcon('check-circle', 24)} Procesamiento Completado</h2>
+                    <div class="results-summary" id="resultsSummary">
+                        <!-- Los resultados se mostrarán aquí -->
+                    </div>
+                    <div class="processed-files-section" id="processedFilesSection">
+                        <h3>Archivos Procesados</h3>
+                        <div class="processed-files-list" id="processedFilesList">
+                            <!-- Lista de archivos procesados -->
+                        </div>
+                    </div>
+                    <div class="download-area" id="downloadArea">
+                        <!-- Los enlaces de descarga aparecerán aquí -->
                     </div>
                 </div>
-                <div class="download-area" id="downloadArea">
-                    <!-- Los enlaces de descarga aparecerán aquí -->
-                </div>
-            </div>
-        </main>
+            </main>
+        </div>
+
+        <footer>
+            <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+        </footer>
     </div>
-
-    <footer>
-        <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
-    </footer>
     `;
 
     // Inicialización equivalente al DOMContentLoaded previo
@@ -124,7 +128,6 @@ export function renderCalificacionesPage(
     setupEventListeners();
 
     try {
-        require('exceljs');
         logMessage('Sistema de procesamiento de calificaciones iniciado', 'info');
         logMessage('ExcelJS cargado - Procesamiento real activado', 'success');
     } catch (error) {
@@ -142,6 +145,7 @@ export function renderCalificacionesPage(
     (window as any).goBack = () => navigate('home');
     (window as any).navigate = navigate;
     (window as any).toggleTheme = toggleTheme;
+    setupTitleBarActions();
 }
 
 // Función de toggle de tema
@@ -183,9 +187,10 @@ function setupEventListeners() {
 }
 
 // Manejar selección de archivos
-function handleFileSelection(event) {
-    console.log('Archivos seleccionados:', event.target.files.length);
-    const files = Array.from(event.target.files);
+function handleFileSelection(event: Event) {
+    const target = event.target as HTMLInputElement;
+    console.log('Archivos seleccionados:', target.files?.length);
+    const files = Array.from(target.files || []) as File[];
     addFilesToList(files);
 }
 
@@ -204,13 +209,13 @@ function handleDragLeave(event) {
 }
 
 // Manejar drop de archivos
-function handleFileDrop(event) {
+function handleFileDrop(event: DragEvent) {
     event.preventDefault();
     event.stopPropagation();
-    document.getElementById('uploadArea').classList.remove('drag-over');
+    document.getElementById('uploadArea')!.classList.remove('drag-over');
     
-    const files = Array.from(event.dataTransfer.files);
-    const excelFiles = files.filter(file => 
+    const files = Array.from(event.dataTransfer?.files || []) as File[];
+    const excelFiles = files.filter((file: File) => 
         file.name.toLowerCase().endsWith('.xlsx') || 
         file.name.toLowerCase().endsWith('.xls')
     );
@@ -223,7 +228,7 @@ function handleFileDrop(event) {
 }
 
 // Agregar archivos a la lista
-function addFilesToList(files) {
+function addFilesToList(files: File[]) {
     console.log('Agregando archivos:', files.length);
     
     if (selectedFiles.length + files.length > 60) {
@@ -231,7 +236,7 @@ function addFilesToList(files) {
         return;
     }
     
-    files.forEach(file => {
+    files.forEach((file: File) => {
         if (!selectedFiles.some(f => f.name === file.name)) {
             selectedFiles.push(file);
             console.log('Archivo agregado:', file.name);
@@ -253,7 +258,7 @@ function updateFileList() {
     const fileCount = document.getElementById('fileCount');
     const btnFileCount = document.getElementById('btnFileCount');
     const fileList = document.getElementById('fileList');
-    const processBtn = document.getElementById('processBtn');
+    const processBtn = document.getElementById('processBtn') as HTMLButtonElement | null;
     const fileRequirement = document.getElementById('fileRequirement');
     
     console.log('Elementos encontrados:', {
@@ -378,8 +383,8 @@ async function processExcelFilesReal() {
     };
     
     // Iniciar batch processing si está disponible
-    if (window.configFilters && window.configFilters.startBatchProcessing) {
-        window.configFilters.startBatchProcessing();
+    if ((window as any).configFilters && (window as any).configFilters.startBatchProcessing) {
+        (window as any).configFilters.startBatchProcessing();
         console.log('Batch processing iniciado');
     }
     
@@ -426,8 +431,8 @@ async function processExcelFilesReal() {
     updateProgress(selectedFiles.length, selectedFiles.length, 'Procesamiento completado');
     
     // Finalizar batch processing y obtener todos los usuarios eliminados acumulados
-    if (window.configFilters && window.configFilters.finishBatchProcessing) {
-        window.configFilters.finishBatchProcessing();
+    if ((window as any).configFilters && (window as any).configFilters.finishBatchProcessing) {
+        (window as any).configFilters.finishBatchProcessing();
         console.log('Batch processing finalizado');
     }
     
@@ -435,9 +440,7 @@ async function processExcelFilesReal() {
 }
 
 // Procesar un archivo Excel individual (versión real)
-async function processExcelFileReal(file: File) {
-    const ExcelJS = require('exceljs');
-    
+async function processExcelFileReal(file: File): Promise<any> {
     return new Promise((resolve, reject) => {
         console.log(`Procesando ${file.name} (real)...`);
         
@@ -524,8 +527,6 @@ async function processExcelFileReal(file: File) {
 
 // Generar archivo consolidado (versión real con ExcelJS)
 async function generateConsolidatedFileReal(results) {
-    const ExcelJS = require('exceljs');
-    
     logMessage('Generando archivo Excel consolidado...', 'info');
     
     try {
@@ -602,8 +603,8 @@ async function generateConsolidatedFileReal(results) {
             
             // Obtener información detallada de usuarios eliminados del historial más reciente
             // (que contiene TODOS los usuarios eliminados de TODOS los archivos procesados)
-            if (typeof window !== 'undefined' && window.configFilters && window.configFilters.getEliminatedHistory) {
-                const eliminatedHistory = window.configFilters.getEliminatedHistory();
+            if (typeof window !== 'undefined' && (window as any).configFilters && (window as any).configFilters.getEliminatedHistory) {
+                const eliminatedHistory = (window as any).configFilters.getEliminatedHistory();
                 
                 // El historial más reciente ahora contiene TODOS los usuarios eliminados del batch
                 if (eliminatedHistory.length > 0 && eliminatedHistory[0].users) {
@@ -649,8 +650,8 @@ async function generateConsolidatedFileReal(results) {
             txtContent += '='.repeat(70) + '\n\n';
             
             // Obtener información de filtros activos si está disponible
-            if (typeof window !== 'undefined' && window.configFilters && window.configFilters.getActiveFilters) {
-                const activeFilters = window.configFilters.getActiveFilters();
+            if (typeof window !== 'undefined' && (window as any).configFilters && (window as any).configFilters.getActiveFilters) {
+                const activeFilters = (window as any).configFilters.getActiveFilters();
                 txtContent += 'FILTROS APLICADOS:\n';
                 txtContent += '-'.repeat(70) + '\n';
                 
@@ -722,10 +723,10 @@ async function generateConsolidatedFileReal(results) {
 }
 
 // Generar contenido CSV
-function generateCSVContent(processedSheets) {
+function generateCSVContent(processedSheets: any) {
     let csvContent = 'Hoja,Nombre,Apellido,Email,Calificación,Curso\n';
     
-    Object.entries(processedSheets).forEach(([sheetName, data]) => {
+    (Object.entries(processedSheets) as [string, any[]][]).forEach(([sheetName, data]) => {
         data.forEach(row => {
             const csvRow = [
                 sheetName,
@@ -743,7 +744,7 @@ function generateCSVContent(processedSheets) {
 }
 
 // Filtrar usuarios usando sistema de configuración avanzado
-function filterUsersByEmailReal(data, headers) {
+function filterUsersByEmailReal(data: any[], headers: string[]): any {
     console.log('Iniciando filtrado de usuarios con sistema de configuración...');
     
     if (data.length === 0) {
@@ -751,10 +752,10 @@ function filterUsersByEmailReal(data, headers) {
     }
     
     // Verificar si el sistema de configuración está disponible
-    if (typeof window !== 'undefined' && window.configFilters && window.configFilters.applyUserFilters) {
+    if (typeof window !== 'undefined' && (window as any).configFilters && (window as any).configFilters.applyUserFilters) {
         console.log('Usando sistema de configuración avanzado');
         
-        const result = window.configFilters.applyUserFilters(data, headers);
+        const result = (window as any).configFilters.applyUserFilters(data, headers);
         
         // Convertir formato para compatibilidad con el código existente
         // Incluir TODOS los usuarios eliminados (tanto por email como por RUT)
@@ -796,7 +797,7 @@ function filterUsersByEmailReal(data, headers) {
 }
 
 // Sistema básico de filtrado (fallback)
-function filterUsersByEmailBasic(data, headers) {
+function filterUsersByEmailBasic(data: any[], headers: string[]): any {
     console.log('Usando sistema básico de filtrado...');
     
     // Buscar columnas de email

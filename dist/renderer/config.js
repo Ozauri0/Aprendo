@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderConfigPage = renderConfigPage;
-// @ts-nocheck
 // config.ts - Sistema de configuración avanzada para filtros de usuarios
-const { getIcon } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
+const icons_1 = require("./icons");
+const header_1 = require("./components/header");
+const title_bar_1 = require("./components/title-bar");
 // Variables globales
 let emailFilters = [];
 let rutFilters = [];
@@ -18,230 +18,232 @@ function renderConfigPage(injectStyles, navigate) {
     document.title = 'Configuración - Aprendo UCT';
     injectStyles(['styles.css', 'global-styles.css', 'config.css']);
     // Aplicar tema guardado
-    applyStoredTheme();
+    (0, header_1.applyStoredTheme)();
     document.body.innerHTML = `
-    <div class="container">
-        ${renderHeader({
+    ${(0, title_bar_1.renderTitleBar)('Configuración')}
+    <div class="page-scroll">
+        <div class="container">
+            ${(0, header_1.renderHeader)({
         title: 'Configuración del Sistema',
         subtitle: 'Personaliza los filtros y preferencias de la aplicación',
         showBackButton: true,
         showConfigButton: false
     })}
 
-        <main>
-            <div class="section-card">
-                <div class="section-header">
-                    <h2>Configuración del Sistema</h2>
-                    <p class="section-description">
-                        Todos los cambios se guardan automáticamente. Personaliza los filtros y preferencias de la aplicación.
-                    </p>
-                </div>
-
-                <div class="auto-save-info">
-                    <div class="info-card-small">
-                        <span class="info-icon-small">${getIcon('save', 18)}</span>
-                        <span class="info-text">Guardado automático activado</span>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('mail', 20)} Filtros por Correo Electrónico</h3>
-                        <span class="section-hint">Excluye usuarios por su dirección de correo</span>
+            <main>
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Configuración del Sistema</h2>
+                        <p class="section-description">
+                            Todos los cambios se guardan automáticamente. Personaliza los filtros y preferencias de la aplicación.
+                        </p>
                     </div>
 
-                    <div class="input-group">
-                        <label class="input-label">Agregar correo individual</label>
-                        <div class="input-row">
-                            <input type="email" id="emailInput" placeholder="ejemplo@dominio.com" class="input-field">
-                            <button class="btn btn-primary" onclick="addEmailFilter()">
-                                ${getIcon('plus', 16)} Agregar
-                            </button>
-                        </div>
-
-                        <div class="textarea-section">
-                            <label class="input-label" for="bulkEmailInput">
-                                Agregar múltiples correos
-                                <span class="label-hint">(uno por línea)</span>
-                            </label>
-                            <textarea id="bulkEmailInput" rows="4"
-                                placeholder="correo1@ejemplo.com&#10;correo2@ejemplo.com&#10;usuario@dominio.cl"></textarea>
-                            <button class="btn btn-secondary" onclick="addBulkEmails()">
-                                ${getIcon('plus', 16)} Agregar en Lote
-                            </button>
+                    <div class="auto-save-info">
+                        <div class="info-card-small">
+                            <span class="info-icon-small">${(0, icons_1.getIcon)('save', 18)}</span>
+                            <span class="info-text">Guardado automático activado</span>
                         </div>
                     </div>
 
-                    <div class="filters-list">
-                        <div class="filters-list-header">
-                            <h4>Correos Filtrados</h4>
-                            <span class="count-badge" id="emailCount">0</span>
-                        </div>
-                        <div id="emailFilters" class="filters-container"></div>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('user', 20)} Filtros por RUT</h3>
-                        <span class="section-hint">Excluye usuarios por su número de RUT</span>
-                    </div>
-
-                    <div class="input-group">
-                        <label class="input-label">Agregar RUT individual</label>
-                        <div class="input-row">
-                            <input type="text" id="rutInput" placeholder="12.345.678-9 o 12345678-9"
-                                class="input-field">
-                            <button class="btn btn-primary" onclick="addRutFilter()">
-                                ${getIcon('plus', 16)} Agregar
-                            </button>
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${(0, icons_1.getIcon)('mail', 20)} Filtros por Correo Electrónico</h3>
+                            <span class="section-hint">Excluye usuarios por su dirección de correo</span>
                         </div>
 
-                        <div class="textarea-section">
-                            <label class="input-label" for="bulkRutInput">
-                                Agregar múltiples RUTs
-                                <span class="label-hint">(uno por línea)</span>
-                            </label>
-                            <textarea id="bulkRutInput" rows="4"
-                                placeholder="12.345.678-9&#10;98.765.432-1&#10;11222333-4"></textarea>
-                            <button class="btn btn-secondary" onclick="addBulkRuts()">
-                                ${getIcon('plus', 16)} Agregar en Lote
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="filters-list">
-                        <div class="filters-list-header">
-                            <h4>RUTs Filtrados</h4>
-                            <span class="count-badge" id="rutCount">0</span>
-                        </div>
-                        <div id="rutFilters" class="filters-container"></div>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('clock', 20)} Historial de Usuarios Filtrados</h3>
-                        <span class="section-hint">Consulta el registro de usuarios excluidos</span>
-                    </div>
-                    <div class="report-controls">
-                        <button class="btn btn-info" onclick="showEliminatedReport()">
-                            ${getIcon('eye', 16)} Ver Reporte
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportEliminatedReport()">
-                            ${getIcon('download', 16)} Exportar
-                        </button>
-                        <button class="btn btn-warning" onclick="clearEliminatedHistory()">
-                            ${getIcon('trash', 16)} Limpiar Historial
-                        </button>
-                    </div>
-
-                    <div id="eliminatedReport" class="report-container" style="display: none;">
-                        <h4>Últimos Usuarios Excluidos</h4>
-                        <div id="eliminatedList" class="eliminated-list"></div>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('settings', 20)} Preferencias del Sistema</h3>
-                        <span class="section-hint">Ajusta el comportamiento general de la aplicación</span>
-                    </div>
-
-                    <div class="settings-grid">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label">
-                                    Guardado Automático de Archivos
-                                </label>
-                                <span class="setting-description">Guarda automáticamente los archivos procesados</span>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="autoSave" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label">
-                                    Logs Detallados
-                                </label>
-                                <span class="setting-description">Muestra información detallada en la consola</span>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="detailedLogs" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="setting-item full-width">
-                            <div class="setting-info">
-                                <label class="setting-label" for="maxFiles">
-                                    Archivos Simultáneos
-                                </label>
-                                <span class="setting-description">Máximo de archivos a procesar al mismo tiempo</span>
-                            </div>
-                            <div class="number-input-group">
-                                <input type="number" id="maxFiles" value="10" min="1" max="50"
-                                    class="input-field number-input">
-                                <span class="number-unit">archivos</span>
-                            </div>
-                        </div>
-
-                        <div class="setting-item full-width">
-                            <div class="setting-info">
-                                <label class="setting-label" for="consolidationMode">
-                                    Modo de Consolidación de Informes
-                                </label>
-                                <span class="setting-description">Define cómo se organizará la información al consolidar múltiples archivos Excel</span>
-                            </div>
-                            <div class="radio-group">
-                                <label class="radio-option">
-                                    <input type="radio" name="consolidationMode" value="separate"
-                                        id="consolidationSeparate" checked>
-                                    <div class="radio-content">
-                                        <span class="radio-label">Hojas Separadas</span>
-                                        <span class="radio-description">Cada archivo se guardará en una hoja diferente del Excel consolidado</span>
-                                    </div>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="consolidationMode" value="single"
-                                        id="consolidationSingle">
-                                    <div class="radio-content">
-                                        <span class="radio-label">Hoja Única</span>
-                                        <span class="radio-description">Todos los datos se consolidarán en una sola hoja continua</span>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="setting-item full-width">
-                            <div class="setting-info">
-                                <label class="setting-label">
-                                    Tema de la Aplicación
-                                </label>
-                                <span class="setting-description">Selecciona el modo de visualización</span>
-                            </div>
-                            <div class="theme-buttons">
-                                <button class="btn btn-outline btn-sm" onclick="setTheme('light')">
-                                    ${getIcon('sun', 16)} Claro
+                        <div class="input-group">
+                            <label class="input-label">Agregar correo individual</label>
+                            <div class="input-row">
+                                <input type="email" id="emailInput" placeholder="ejemplo@dominio.com" class="input-field">
+                                <button class="btn btn-primary" onclick="addEmailFilter()">
+                                    ${(0, icons_1.getIcon)('plus', 16)} Agregar
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="setTheme('dark')">
-                                    ${getIcon('moon', 16)} Oscuro
+                            </div>
+
+                            <div class="textarea-section">
+                                <label class="input-label" for="bulkEmailInput">
+                                    Agregar múltiples correos
+                                    <span class="label-hint">(uno por línea)</span>
+                                </label>
+                                <textarea id="bulkEmailInput" rows="4"
+                                    placeholder="correo1@ejemplo.com&#10;correo2@ejemplo.com&#10;usuario@dominio.cl"></textarea>
+                                <button class="btn btn-secondary" onclick="addBulkEmails()">
+                                    ${(0, icons_1.getIcon)('plus', 16)} Agregar en Lote
                                 </button>
                             </div>
                         </div>
+
+                        <div class="filters-list">
+                            <div class="filters-list-header">
+                                <h4>Correos Filtrados</h4>
+                                <span class="count-badge" id="emailCount">0</span>
+                            </div>
+                            <div id="emailFilters" class="filters-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${(0, icons_1.getIcon)('user', 20)} Filtros por RUT</h3>
+                            <span class="section-hint">Excluye usuarios por su número de RUT</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Agregar RUT individual</label>
+                            <div class="input-row">
+                                <input type="text" id="rutInput" placeholder="12.345.678-9 o 12345678-9"
+                                    class="input-field">
+                                <button class="btn btn-primary" onclick="addRutFilter()">
+                                    ${(0, icons_1.getIcon)('plus', 16)} Agregar
+                                </button>
+                            </div>
+
+                            <div class="textarea-section">
+                                <label class="input-label" for="bulkRutInput">
+                                    Agregar múltiples RUTs
+                                    <span class="label-hint">(uno por línea)</span>
+                                </label>
+                                <textarea id="bulkRutInput" rows="4"
+                                    placeholder="12.345.678-9&#10;98.765.432-1&#10;11222333-4"></textarea>
+                                <button class="btn btn-secondary" onclick="addBulkRuts()">
+                                    ${(0, icons_1.getIcon)('plus', 16)} Agregar en Lote
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filters-list">
+                            <div class="filters-list-header">
+                                <h4>RUTs Filtrados</h4>
+                                <span class="count-badge" id="rutCount">0</span>
+                            </div>
+                            <div id="rutFilters" class="filters-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${(0, icons_1.getIcon)('clock', 20)} Historial de Usuarios Filtrados</h3>
+                            <span class="section-hint">Consulta el registro de usuarios excluidos</span>
+                        </div>
+                        <div class="report-controls">
+                            <button class="btn btn-info" onclick="showEliminatedReport()">
+                                ${(0, icons_1.getIcon)('eye', 16)} Ver Reporte
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportEliminatedReport()">
+                                ${(0, icons_1.getIcon)('download', 16)} Exportar
+                            </button>
+                            <button class="btn btn-warning" onclick="clearEliminatedHistory()">
+                                ${(0, icons_1.getIcon)('trash', 16)} Limpiar Historial
+                            </button>
+                        </div>
+
+                        <div id="eliminatedReport" class="report-container" style="display: none;">
+                            <h4>Últimos Usuarios Excluidos</h4>
+                            <div id="eliminatedList" class="eliminated-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${(0, icons_1.getIcon)('settings', 20)} Preferencias del Sistema</h3>
+                            <span class="section-hint">Ajusta el comportamiento general de la aplicación</span>
+                        </div>
+
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Guardado Automático de Archivos
+                                    </label>
+                                    <span class="setting-description">Guarda automáticamente los archivos procesados</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoSave" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Logs Detallados
+                                    </label>
+                                    <span class="setting-description">Muestra información detallada en la consola</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="detailedLogs" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label" for="maxFiles">
+                                        Archivos Simultáneos
+                                    </label>
+                                    <span class="setting-description">Máximo de archivos a procesar al mismo tiempo</span>
+                                </div>
+                                <div class="number-input-group">
+                                    <input type="number" id="maxFiles" value="10" min="1" max="50"
+                                        class="input-field number-input">
+                                    <span class="number-unit">archivos</span>
+                                </div>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label" for="consolidationMode">
+                                        Modo de Consolidación de Informes
+                                    </label>
+                                    <span class="setting-description">Define cómo se organizará la información al consolidar múltiples archivos Excel</span>
+                                </div>
+                                <div class="radio-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="consolidationMode" value="separate"
+                                            id="consolidationSeparate" checked>
+                                        <div class="radio-content">
+                                            <span class="radio-label">Hojas Separadas</span>
+                                            <span class="radio-description">Cada archivo se guardará en una hoja diferente del Excel consolidado</span>
+                                        </div>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="consolidationMode" value="single"
+                                            id="consolidationSingle">
+                                        <div class="radio-content">
+                                            <span class="radio-label">Hoja Única</span>
+                                            <span class="radio-description">Todos los datos se consolidarán en una sola hoja continua</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Tema de la Aplicación
+                                    </label>
+                                    <span class="setting-description">Selecciona el modo de visualización</span>
+                                </div>
+                                <div class="theme-buttons">
+                                    <button class="btn btn-outline btn-sm" onclick="setTheme('light')">
+                                        ${(0, icons_1.getIcon)('sun', 16)} Claro
+                                    </button>
+                                    <button class="btn btn-outline btn-sm" onclick="setTheme('dark')">
+                                        ${(0, icons_1.getIcon)('moon', 16)} Oscuro
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            </div>
-        </main>
+            </main>
+        </div>
+
+        <footer>
+            <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+        </footer>
     </div>
-
-    <footer>
-        <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
-    </footer>
     `;
     initializeConfigSystem();
     window.navigate = navigate;
@@ -259,6 +261,7 @@ function renderConfigPage(injectStyles, navigate) {
     window.clearEliminatedHistory = clearEliminatedHistory;
     window.toggleTheme = toggleTheme;
     window.setTheme = setTheme;
+    (0, title_bar_1.setupTitleBarActions)();
 }
 // Función de toggle de tema
 function toggleTheme() {
@@ -603,10 +606,10 @@ function updateEmailFiltersUI() {
                 <button class="btn-toggle ${filter.enabled ? 'active' : ''}" 
                         onclick="toggleEmailFilter(${index})"
                         title="${filter.enabled ? 'Desactivar' : 'Activar'}">
-                    ${filter.enabled ? getIcon('check', 16) : getIcon('x', 16)}
+                    ${filter.enabled ? (0, icons_1.getIcon)('check', 16) : (0, icons_1.getIcon)('x', 16)}
                 </button>
                 <button class="btn-remove" onclick="removeEmailFilter(${index})" title="Eliminar">
-                    ${getIcon('trash', 16)}
+                    ${(0, icons_1.getIcon)('trash', 16)}
                 </button>
             </div>
         </div>
@@ -729,10 +732,10 @@ function updateRutFiltersUI() {
                 <button class="btn-toggle ${filter.enabled ? 'active' : ''}" 
                         onclick="toggleRutFilter(${index})"
                         title="${filter.enabled ? 'Desactivar' : 'Activar'}">
-                    ${filter.enabled ? getIcon('check', 16) : getIcon('x', 16)}
+                    ${filter.enabled ? (0, icons_1.getIcon)('check', 16) : (0, icons_1.getIcon)('x', 16)}
                 </button>
                 <button class="btn-remove" onclick="removeRutFilter(${index})" title="Eliminar">
-                    ${getIcon('trash', 16)}
+                    ${(0, icons_1.getIcon)('trash', 16)}
                 </button>
             </div>
         </div>

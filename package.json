@@ -17,6 +17,7 @@
     "copyfiles": "^2.4.1",
     "electron": "^38.0.0",
     "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
@@ -31,7 +32,8 @@
     "appId": "com.aprendo.app",
     "productName": "Aprendo",
     "directories": {
-      "output": "dist"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
@@ -46,6 +48,35 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Education"
     }
   }
 }

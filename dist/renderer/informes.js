@@ -1,11 +1,15 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderInformesPage = renderInformesPage;
-// @ts-nocheck
 // informes.ts - Lógica para procesar archivos de informes/logs
 require("./config");
-const { getIcon } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
+const icons_1 = require("./icons");
+const header_1 = require("./components/header");
+const title_bar_1 = require("./components/title-bar");
+const exceljs_1 = __importDefault(require("exceljs"));
 function renderInformesPage(injectStyles, navigate) {
     selectedFiles = [];
     processedData = {};
@@ -17,93 +21,95 @@ function renderInformesPage(injectStyles, navigate) {
         'informes.css'
     ]);
     // Aplicar tema guardado
-    applyStoredTheme();
+    (0, header_1.applyStoredTheme)();
     document.body.innerHTML = `
-    <div class="container">
-        ${renderHeader({
+    ${(0, title_bar_1.renderTitleBar)('Consolidar Informes')}
+    <div class="page-scroll">
+        <div class="container">
+            ${(0, header_1.renderHeader)({
         title: 'Consolidar Informes',
         subtitle: 'Consolida archivos de logs e informes de actividad en un Excel',
         showBackButton: true,
         showConfigButton: false
     })}
 
-        <main>
-            <div class="upload-section">
-                <h2>Subir Archivos</h2>
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-content">
-                        <span class="upload-icon">${getIcon('folder-open', 48)}</span>
-                        <h3>Arrastra archivos Excel aquí</h3>
-                        <p>o haz clic para seleccionar (máximo 60 archivos)</p>
-                        <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;">
-                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                            ${getIcon('upload', 18)} Seleccionar Archivos
-                        </button>
+            <main>
+                <div class="upload-section">
+                    <h2>Subir Archivos</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <span class="upload-icon">${(0, icons_1.getIcon)('folder-open', 48)}</span>
+                            <h3>Arrastra archivos Excel aquí</h3>
+                            <p>o haz clic para seleccionar (máximo 60 archivos)</p>
+                            <input type="file" id="fileInput" multiple accept=".xlsx,.xls" style="display: none;">
+                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                ${(0, icons_1.getIcon)('upload', 18)} Seleccionar Archivos
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="file-info" id="fileInfo" style="display: none;">
+                        <h3>Archivos seleccionados: <span id="fileCount">0</span></h3>
+                        <p class="file-requirement" id="fileRequirement">Se necesitan al menos 2 archivos para procesar</p>
+                        <div class="file-list" id="fileList"></div>
+                        <div class="process-controls">
+                            <button class="btn btn-success" id="processBtn" onclick="processFiles()" disabled>
+                                ${(0, icons_1.getIcon)('play', 18)} Procesar Archivos (<span id="btnFileCount">0</span>)
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearFiles()">
+                                ${(0, icons_1.getIcon)('trash', 18)} Limpiar Lista
+                            </button>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="file-info" id="fileInfo" style="display: none;">
-                    <h3>Archivos seleccionados: <span id="fileCount">0</span></h3>
-                    <p class="file-requirement" id="fileRequirement">Se necesitan al menos 2 archivos para procesar</p>
-                    <div class="file-list" id="fileList"></div>
-                    <div class="process-controls">
-                        <button class="btn btn-success" id="processBtn" onclick="processFiles()" disabled>
-                            ${getIcon('play', 18)} Procesar Archivos (<span id="btnFileCount">0</span>)
-                        </button>
-                        <button class="btn btn-secondary" onclick="clearFiles()">
-                            ${getIcon('trash', 18)} Limpiar Lista
-                        </button>
+
+                <div class="processing-section" id="processingSection" style="display: none;">
+                    <h2>Procesando...</h2>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressText">Preparando...</span>
+                        <span id="progressPercent">0%</span>
                     </div>
                 </div>
-            </div>
 
-            <div class="processing-section" id="processingSection" style="display: none;">
-                <h2>Procesando...</h2>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
+                <div class="log-section">
+                    <h2>Registro de Actividad</h2>
+                    <div class="log-container" id="logContainer">
+                        <!-- Los logs aparecerán aquí -->
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="clearLog()">
+                        ${(0, icons_1.getIcon)('trash', 16)} Limpiar Log
+                    </button>
                 </div>
-                <div class="progress-text">
-                    <span id="progressText">Preparando...</span>
-                    <span id="progressPercent">0%</span>
-                </div>
-            </div>
 
-            <div class="log-section">
-                <h2>Registro de Actividad</h2>
-                <div class="log-container" id="logContainer">
-                    <!-- Los logs aparecerán aquí -->
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="clearLog()">
-                    ${getIcon('trash', 16)} Limpiar Log
-                </button>
-            </div>
-
-            <div class="results-section" id="resultsSection" style="display: none;">
-                <h2>${getIcon('check-circle', 24)} Procesamiento Completado</h2>
-                <div class="results-summary" id="resultsSummary">
-                    <!-- Los resultados se mostrarán aquí -->
-                </div>
-                <div class="processed-files-section" id="processedFilesSection">
-                    <h3>Archivos Procesados</h3>
-                    <div class="processed-files-list" id="processedFilesList">
-                        <!-- Lista de archivos procesados -->
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <h2>${(0, icons_1.getIcon)('check-circle', 24)} Procesamiento Completado</h2>
+                    <div class="results-summary" id="resultsSummary">
+                        <!-- Los resultados se mostrarán aquí -->
+                    </div>
+                    <div class="processed-files-section" id="processedFilesSection">
+                        <h3>Archivos Procesados</h3>
+                        <div class="processed-files-list" id="processedFilesList">
+                            <!-- Lista de archivos procesados -->
+                        </div>
+                    </div>
+                    <div class="download-area" id="downloadArea">
+                        <!-- Los enlaces de descarga aparecerán aquí -->
                     </div>
                 </div>
-                <div class="download-area" id="downloadArea">
-                    <!-- Los enlaces de descarga aparecerán aquí -->
-                </div>
-            </div>
-        </main>
+            </main>
+        </div>
+
+        <footer>
+            <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+        </footer>
     </div>
-
-    <footer>
-        <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
-    </footer>
     `;
     logMessage('Sistema de consolidación de informes iniciado', 'info');
     setupEventListeners();
     try {
-        require('exceljs');
         logMessage('ExcelJS cargado - Procesamiento de informes listo', 'success');
     }
     catch (error) {
@@ -117,6 +123,7 @@ function renderInformesPage(injectStyles, navigate) {
     window.goBack = () => navigate('home');
     window.navigate = navigate;
     window.toggleTheme = toggleTheme;
+    (0, title_bar_1.setupTitleBarActions)();
 }
 // Función de toggle de tema
 function toggleTheme() {
@@ -259,10 +266,10 @@ function updateFileList() {
         const dateTime = extractDateTime(file.name);
         return `
             <div class="file-item">
-                <span class="file-name">${getIcon('file-spreadsheet', 16)} ${file.name}</span>
+                <span class="file-name">${(0, icons_1.getIcon)('file-spreadsheet', 16)} ${file.name}</span>
                 <span class="file-size">${formatFileSize(file.size)}</span>
                 <button class="file-remove" onclick="removeFile(${originalIndex})">
-                    ${getIcon('x', 16)}
+                    ${(0, icons_1.getIcon)('x', 16)}
                 </button>
             </div>
         `;
@@ -388,14 +395,13 @@ async function processLogFiles() {
 }
 // Procesar un archivo de log individual
 async function processLogFile(file) {
-    const ExcelJS = require('exceljs');
     return new Promise((resolve, reject) => {
         console.log(`Procesando archivo de log: ${file.name}...`);
         const reader = new FileReader();
         reader.onload = async function (e) {
             try {
                 // Crear workbook de ExcelJS
-                const workbook = new ExcelJS.Workbook();
+                const workbook = new exceljs_1.default.Workbook();
                 // Leer el archivo Excel
                 const arrayBuffer = e.target.result;
                 await workbook.xlsx.load(arrayBuffer);
@@ -454,14 +460,13 @@ async function processLogFile(file) {
 }
 // Generar archivo consolidado de logs
 async function generateConsolidatedLogFile(results) {
-    const ExcelJS = require('exceljs');
     // Obtener modo de consolidación configurado
     const consolidationMode = window.configFilters?.getConsolidationMode() || 'separate';
     console.log('Modo de consolidación:', consolidationMode);
     logMessage(`Generando archivo Excel consolidado (modo: ${consolidationMode === 'separate' ? 'hojas separadas' : 'hoja única'})...`, 'info');
     try {
         // Crear nuevo workbook
-        const workbook = new ExcelJS.Workbook();
+        const workbook = new exceljs_1.default.Workbook();
         if (consolidationMode === 'single') {
             // MODO HOJA ÚNICA: Consolidar todo en una sola hoja
             const worksheet = workbook.addWorksheet('Datos Consolidados');
@@ -606,7 +611,7 @@ function showResults(results) {
             ¡Informes Consolidados Listos!
         </h3>
         <p class="success-message" style="text-align: center; margin: 15px auto; max-width: 600px;">
-            ${getIcon('check-circle', 20)} <strong>Consolidación Completada:</strong> Los archivos de informes han sido consolidados exitosamente. 
+            ${(0, icons_1.getIcon)('check-circle', 20)} <strong>Consolidación Completada:</strong> Los archivos de informes han sido consolidados exitosamente. 
             Cada archivo original ahora es una hoja separada en el archivo Excel consolidado, ordenadas por número de curso.
         </p>
     `;
@@ -616,7 +621,7 @@ function showResults(results) {
                 <a href="${processedData.consolidatedFile.url}" 
                    download="${processedData.consolidatedFile.fileName}" 
                    class="download-btn">
-                    <span class="download-icon">${getIcon('download', 24)}</span>
+                    <span class="download-icon">${(0, icons_1.getIcon)('download', 24)}</span>
                     <div class="download-content">
                         <div class="download-title">Descargar Informes Consolidados</div>
                         <div class="download-subtitle">${processedData.consolidatedFile.fileName}</div>
@@ -642,7 +647,7 @@ function showProcessedFilesList(results) {
         const recordCount = processedData ? processedData.length : 0;
         processedItem.innerHTML = `
             <div class="processed-file-info">
-                <div class="processed-file-name">${getIcon('file-spreadsheet', 16)} ${file.name}</div>
+                <div class="processed-file-name">${(0, icons_1.getIcon)('file-spreadsheet', 16)} ${file.name}</div>
                 <div class="processed-file-stats">
                     ${isSuccess
             ? `${recordCount.toLocaleString()} registros procesados`
@@ -650,7 +655,7 @@ function showProcessedFilesList(results) {
                 </div>
             </div>
             <div class="processed-file-status ${isSuccess ? 'status-success' : 'status-error'}">
-                ${isSuccess ? getIcon('check', 16) + ' Procesado' : getIcon('x', 16) + ' Error'}
+                ${isSuccess ? (0, icons_1.getIcon)('check', 16) + ' Procesado' : (0, icons_1.getIcon)('x', 16) + ' Error'}
             </div>
         `;
         processedFilesList.appendChild(processedItem);

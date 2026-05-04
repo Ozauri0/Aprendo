@@ -137,6 +137,8 @@ html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: transparent;
+    height: 100%;
 }
 
 body {
@@ -144,11 +146,150 @@ body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     transition: background-color var(--transition-base), color var(--transition-base);
+    border-radius: 10px;
+    outline: 1px solid rgba(0,0,0,0.12);
 }
+
+html.is-maximized body {
+    border-radius: 0;
+    outline: none;
+    box-shadow: none;
+}
+
+/* Wrapper de scroll: todo el contenido scrollea aquí, respetando la barra de título */
+.page-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Pequeño espaciado entre la barra de título y el header */
+.page-scroll > .container {
+    padding-top: 8px;
+}
+
+/* ================= BARRA DE TÍTULO CUSTOM ================= */
+.title-bar {
+    flex-shrink: 0;
+    height: 32px;
+    background: linear-gradient(135deg, var(--uct-primary), var(--uct-primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    z-index: 10000;
+    -webkit-app-region: drag;
+    user-select: none;
+    box-shadow: var(--shadow-md);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.title-bar-drag {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex: 1;
+    height: 100%;
+}
+
+.title-bar-icon {
+    width: 28px;
+    height: 28px;
+    background: rgba(255,255,255,0.15);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.title-bar-logo {
+    color: var(--text-inverse);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.title-bar-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.title-bar-title {
+    color: var(--text-inverse);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.title-bar-subtitle {
+    color: rgba(255,255,255,0.65);
+    font-size: 0.7rem;
+    font-weight: 400;
+}
+
+.title-bar-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    -webkit-app-region: no-drag;
+    margin-right: -8px;
+}
+
+.title-bar-btn {
+    width: 42px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.title-bar-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+}
+
+.title-bar-btn.title-bar-close:hover {
+    background: #e81123;
+}
+
+.title-bar-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ================= RESIZE HANDLES PERSONALIZADOS ================= */
+.resize-handle {
+    position: fixed;
+    z-index: 20000;
+    background: transparent;
+    user-select: none;
+    -webkit-app-region: no-drag;
+}
+.resize-handle-n  { top: 0; left: 8px; right: 8px; height: 5px; cursor: n-resize; }
+.resize-handle-s  { bottom: 0; left: 8px; right: 8px; height: 5px; cursor: s-resize; }
+.resize-handle-e  { right: 0; top: 8px; bottom: 8px; width: 5px; cursor: e-resize; }
+.resize-handle-w  { left: 0; top: 8px; bottom: 8px; width: 5px; cursor: w-resize; }
+.resize-handle-ne { top: 0; right: 0; width: 8px; height: 8px; cursor: ne-resize; }
+.resize-handle-nw { top: 0; left: 0; width: 8px; height: 8px; cursor: nw-resize; }
+.resize-handle-se { bottom: 0; right: 0; width: 8px; height: 8px; cursor: se-resize; }
+.resize-handle-sw { bottom: 0; left: 0; width: 8px; height: 8px; cursor: sw-resize; }
+.is-maximized .resize-handle { display: none; }
 
 /* ================= ICONOS SVG INLINE ================= */
 .icon {
@@ -1924,6 +2065,12 @@ main {
 [data-theme="dark"] .btn-config:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+}
+
+[data-theme="dark"] .download-area {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-color);
+    color: var(--text-inverse);
 }
 
 [data-theme="dark"] footer {

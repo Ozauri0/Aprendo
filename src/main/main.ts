@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, screen } from 'electron';
+import { app, BrowserWindow, Menu, screen, ipcMain } from 'electron';
 import path from 'path';
+import { registerDownloadHandlers } from './download-manager';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -24,15 +25,19 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width,
     height,
+    title: 'Aprendo UCT — Sistema de Consolidación de Calificaciones',
+    frame: false,
+    thickFrame: false,
+    backgroundColor: '#f8fafc',
     webPreferences: {
-      nodeIntegration: true,
+      preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: false,
-      webSecurity: false
+      nodeIntegration: true,
+      webSecurity: true
     },
-    icon: path.join(__dirname, '../../assets/icon.png'),
     show: false,
     fullscreen: false,
-    maximizable: true,
+    maximizable: false,
     autoHideMenuBar: true
   });
 
@@ -40,8 +45,21 @@ function createWindow(): void {
   mainWindow.loadFile(indexPath);
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow?.maximize();
+    const workArea = screen.getPrimaryDisplay().workArea;
+    // Guardar un tamaño de restauración por defecto (75% centrado)
+    const rw = Math.round(workArea.width * 0.75);
+    const rh = Math.round(workArea.height * 0.75);
+    savedBounds = {
+      x: workArea.x + Math.round((workArea.width - rw) / 2),
+      y: workArea.y + Math.round((workArea.height - rh) / 2),
+      width: rw,
+      height: rh
+    };
+    mainWindow?.setBounds({ x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height });
+    pseudoMaximized = true;
     mainWindow?.show();
+    // Notificar al renderer que la ventana arranca maximizada
+    mainWindow?.webContents.send('window:maximize-changed', true);
     // Abrir DevTools automáticamente en desarrollo para depurar pantallas en blanco
     if (!app.isPackaged) {
       mainWindow?.webContents.openDevTools({ mode: 'detach' });
@@ -53,7 +71,78 @@ function createWindow(): void {
   });
 }
 
+let pseudoMaximized = false;
+let savedBounds: Electron.Rectangle | null = null;
+
+function registerWindowHandlers() {
+  ipcMain.on('window:minimize', () => {
+    mainWindow?.minimize();
+  });
+  ipcMain.on('window:maximize', () => {
+    if (!mainWindow) return;
+    if (pseudoMaximized) {
+      if (savedBounds) mainWindow.setBounds(savedBounds);
+      pseudoMaximized = false;
+      mainWindow.webContents.send('window:maximize-changed', false);
+    } else {
+      savedBounds = mainWindow.getBounds();
+      const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
+      mainWindow.setBounds({ x, y, width, height });
+      pseudoMaximized = true;
+      mainWindow.webContents.send('window:maximize-changed', true);
+    }
+  });
+  ipcMain.on('window:close', () => {
+    mainWindow?.close();
+  });
+  ipcMain.on('window:set-background', (_e, color: string) => {
+    mainWindow?.setBackgroundColor(color);
+  });
+
+  // Resize personalizado (thickFrame: false suprime el overlay de tamaño de Windows)
+  const RESIZE_MIN = { width: 600, height: 400 };
+  let resizeInterval: ReturnType<typeof setInterval> | null = null;
+  let resizeEdge = '';
+  const resizeStart = { bounds: { x: 0, y: 0, width: 0, height: 0 }, cursor: { x: 0, y: 0 } };
+
+  const stopResize = () => {
+    if (resizeInterval) { clearInterval(resizeInterval); resizeInterval = null; }
+    if (!mainWindow) return;
+    const b = mainWindow.getBounds();
+    const wa = screen.getPrimaryDisplay().workArea;
+    const isMax = b.x <= wa.x && b.y <= wa.y && b.width >= wa.width && b.height >= wa.height;
+    pseudoMaximized = isMax;
+    mainWindow.webContents.send('window:maximize-changed', isMax);
+    if (!isMax) savedBounds = b;
+  };
+
+  ipcMain.on('window:resize-start', (_e, edge: string) => {
+    if (!mainWindow) return;
+    resizeEdge = edge;
+    resizeStart.bounds = mainWindow.getBounds();
+    resizeStart.cursor = screen.getCursorScreenPoint();
+    if (resizeInterval) clearInterval(resizeInterval);
+    resizeInterval = setInterval(() => {
+      if (!mainWindow) { stopResize(); return; }
+      const cur = screen.getCursorScreenPoint();
+      const dx = cur.x - resizeStart.cursor.x;
+      const dy = cur.y - resizeStart.cursor.y;
+      const s = resizeStart.bounds;
+      let { x, y, width, height } = s;
+      if (resizeEdge.includes('e')) width  = Math.max(RESIZE_MIN.width,  s.width  + dx);
+      if (resizeEdge.includes('s')) height = Math.max(RESIZE_MIN.height, s.height + dy);
+      if (resizeEdge.includes('w')) { width = Math.max(RESIZE_MIN.width, s.width - dx); x = s.x + s.width - width; }
+      if (resizeEdge.includes('n')) { height = Math.max(RESIZE_MIN.height, s.height - dy); y = s.y + s.height - height; }
+      mainWindow.setBounds({ x, y, width, height });
+    }, 16);
+  });
+
+  ipcMain.on('window:resize-end', () => stopResize());
+}
+
 app.whenReady().then(async () => {
+  registerDownloadHandlers();
+  registerWindowHandlers();
   // Calentar dependencias en segundo plano antes de mostrar UI
   warmMainDependencies();
   createWindow();

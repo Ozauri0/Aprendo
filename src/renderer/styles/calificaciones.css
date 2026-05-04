@@ -59,9 +59,19 @@
 .results-section h2,
 .results-section h3,
 .results-section h4,
-.results-section p,
-.results-section span {
+.results-section > p,
+.results-section .results-summary p,
+.results-section .processed-files-section p,
+.results-section .processed-files-section h3 {
     color: var(--text-primary);
+}
+
+/* El área de descarga dentro de results debe tener texto blanco */
+.results-section .download-area,
+.results-section .download-area *,
+.results-section .download-area .download-title,
+.results-section .download-area .download-subtitle {
+    color: var(--text-inverse);
 }
 
 .results-summary {
