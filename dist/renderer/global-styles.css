@@ -739,3 +739,26 @@ tr:last-child td {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
 }
+
+/* ================= INPUT NUMBER SPINNERS ================= */
+/* Ocultar spinners nativos del navegador para consistencia de tema */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Icono del selector de fecha adaptado al tema */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.5;
+}

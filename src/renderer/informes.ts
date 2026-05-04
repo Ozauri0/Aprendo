@@ -98,11 +98,11 @@ export function renderInformesPage(
                 </div>
             </div>
         </main>
-        
-        <footer>
-            <p>Aprendo UCT v1.0.0 - Universidad Católica de Temuco</p>
-        </footer>
     </div>
+
+    <footer>
+        <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+    </footer>
     `;
 
     logMessage('Sistema de consolidación de informes iniciado', 'info');
@@ -790,8 +790,8 @@ function logMessage(message, type = 'info') {
     `;
     
     logContainer.appendChild(logEntry);
-    // Scroll automático al último elemento
-    logEntry.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    // Scroll automático al último elemento (solo dentro del contenedor)
+    logContainer.scrollTop = logContainer.scrollHeight;
 }
 
 function clearLog() {

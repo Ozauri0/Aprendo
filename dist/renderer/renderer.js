@@ -134,25 +134,34 @@ function showLoadingOverlay(message) {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: rgba(255, 255, 255, 0.9);
-                backdrop-filter: blur(2px);
+                background: var(--bg-primary, #f8fafc);
+                backdrop-filter: blur(4px);
                 z-index: 9999;
-                color: #111;
-                font-family: 'Inter', 'Segoe UI', sans-serif;
+                color: var(--text-primary, #1e293b);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 flex-direction: column;
-                gap: 12px;
+                gap: 16px;
+                transition: opacity 0.3s ease;
             }
             #app-loading-overlay .spinner {
-                width: 42px;
-                height: 42px;
-                border: 4px solid #e2e8f0;
-                border-top-color: #2563eb;
+                width: 44px;
+                height: 44px;
+                border: 3px solid var(--border-color, #e2e8f0);
+                border-top-color: var(--uct-primary, #003366);
                 border-radius: 50%;
-                animation: spin 1s linear infinite;
+                animation: spin 0.85s linear infinite;
             }
             #app-loading-overlay .message {
-                font-size: 15px;
+                font-size: 0.9375rem;
                 font-weight: 600;
+                color: var(--text-secondary, #475569);
+                letter-spacing: 0.01em;
+            }
+            #app-loading-overlay .brand {
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: var(--uct-primary, #003366);
+                letter-spacing: -0.01em;
             }
             @keyframes spin { to { transform: rotate(360deg); } }
         `;
@@ -160,6 +169,7 @@ function showLoadingOverlay(message) {
     overlay.id = 'app-loading-overlay';
     overlay.innerHTML = `
             <div class="spinner"></div>
+            <div class="brand">Aprendo UCT</div>
             <div class="message">${message || 'Cargando...'}</div>
         `;
     document.head.appendChild(style);
@@ -217,61 +227,40 @@ function openDescargas() {
 }
 // Sistema de notificaciones
 function showNotification(message, type = 'info') {
-    // Crear elemento de notificación
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    // Estilos de la notificación
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'info' ? '#4299e1' : type === 'success' ? '#48bb78' : '#f56565'};
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
-        animation: slideIn 0.3s ease-out;
-        max-width: 300px;
-        word-wrap: break-word;
+    // Asegurar que el contenedor de toasts existe
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const iconMap = {
+        info: '&#9432;',
+        success: '&#10003;',
+        warning: '&#9888;',
+        error: '&#10007;'
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-icon">${iconMap[type] || iconMap.info}</span>
+        <div class="toast-content">
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()" title="Cerrar">&times;</button>
     `;
-    // Agregar animación CSS
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        @keyframes slideOut {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-        }
-    `;
-    document.head.appendChild(style);
-    // Agregar al DOM
-    document.body.appendChild(notification);
-    // Auto-eliminar después de 3 segundos
+    container.appendChild(toast);
+    // Auto-eliminar después de 3.5 segundos
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
+        toast.style.transition = 'all 0.3s ease-out';
+        toast.style.transform = 'translateX(110%)';
+        toast.style.opacity = '0';
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
+            if (toast.parentNode)
+                toast.parentNode.removeChild(toast);
         }, 300);
-    }, 3000);
+    }, 3500);
 }
 // Funciones de utilidad
 function formatDate(date) {
@@ -355,14 +344,15 @@ function renderHomePage() {
                 </div>
 
             </main>
+        </div>
 
-            <footer>
-                <div class="footer-brand">
-                    <span>Universidad Católica de Temuco</span>
-                </div>
-                <p>Aprendo UCT v1.0.0 - Desarrollado por Christian Ferrer</p>
-            </footer>
-        </div>`;
+        <footer>
+            <div class="footer-brand">
+                <span>Universidad Católica de Temuco</span>
+            </div>
+            <div class="footer-divider"></div>
+            <p>Aprendo UCT v1.0.0 &mdash; Desarrollado por Christian Ferrer</p>
+        </footer>`;
     initializeApp();
 }
 // Inyecta CSS leyendo archivos locales (evita depender de <link> en HTML)

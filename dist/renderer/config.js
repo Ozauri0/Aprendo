@@ -235,12 +235,13 @@ function renderConfigPage(injectStyles, navigate) {
                     </div>
                 </div>
             </div>
+            </div>
         </main>
-
-        <footer>
-            <p>Aprendo UCT v1.0.0 - Universidad Católica de Temuco</p>
-        </footer>
     </div>
+
+    <footer>
+        <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+    </footer>
     `;
     initializeConfigSystem();
     window.navigate = navigate;

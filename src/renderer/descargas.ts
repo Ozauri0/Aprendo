@@ -87,11 +87,11 @@ export function renderDescargasPage(
                 <div id="activityLog" class="activity-log"></div>
             </div>
         </main>
-
-        <footer>
-            <p>Aprendo UCT v1.0.0 - Universidad Católica de Temuco</p>
-        </footer>
     </div>
+
+    <footer>
+        <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+    </footer>
     `;
 
     statusDisplay = document.getElementById('statusDisplay');
@@ -373,6 +373,6 @@ function log(message, type = 'info') {
     entry.className = `log-entry log-${type}`;
     entry.innerHTML = `<span class="log-time">[${now}]</span> ${message}`;
     activityLog.appendChild(entry);
-    // Scroll automático al último elemento
-    entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    // Scroll automático al último elemento (solo dentro del contenedor)
+    activityLog.scrollTop = activityLog.scrollHeight;
 }
