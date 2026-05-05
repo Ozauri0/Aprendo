@@ -17,9 +17,7 @@ function renderHeader(config) {
             <header>
                 <div class="header-content">
                     <div class="header-brand">
-                        <div class="header-logo">
-                            <span class="header-logo-placeholder">UCT</span>
-                        </div>
+                        <img src="assets/logo.png" alt="UCT" class="header-logo-img">
                         <div class="header-text">
                             <h1>${title}</h1>
                             ${subtitle ? `<p>${subtitle}</p>` : ''}
