@@ -16,6 +16,9 @@ const api = {
   startDownloads: (args: import('../shared/types').DownloadStartArgs) =>
     ipcRenderer.invoke('puppeteer:download', args),
 
+  startLogDownloads: (args: import('../shared/types').DownloadStartArgs) =>
+    ipcRenderer.invoke('puppeteer:download-logs', args),
+
   stopDownloads: () => ipcRenderer.invoke('puppeteer:stop'),
 
   // Progress callbacks

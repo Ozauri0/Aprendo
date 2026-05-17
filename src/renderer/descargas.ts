@@ -73,7 +73,10 @@ export function renderDescargasPage(
                         </div>
                         <div class="action-buttons-center" style="gap: 10px;">
                             <button class="btn btn-success btn-large" onclick="startDownloadLoop()" id="downloadBtn">
-                                ${getIcon('play', 18)} Comenzar Descargas
+                                ${getIcon('play', 18)} Descargar Notas
+                            </button>
+                            <button class="btn btn-info btn-large" onclick="startLogDownloadLoop()" id="logDownloadBtn">
+                                ${getIcon('clipboard-list', 18)} Descargar Participación
                             </button>
                             <button class="btn btn-warning btn-large" onclick="stopDownloadLoop()" id="stopBtn" style="display:none;">
                                 ${getIcon('stop', 18)} Detener
@@ -117,6 +120,7 @@ export function renderDescargasPage(
     (window as any).goBack = () => navigate('home');
     (window as any).startLoginProcess = startLoginProcess;
     (window as any).startDownloadLoop = startDownloadLoop;
+    (window as any).startLogDownloadLoop = startLogDownloadLoop;
     (window as any).stopDownloadLoop = stopDownloadLoop;
     (window as any).toggleTheme = toggleTheme;
     setupTitleBarActions();
@@ -177,6 +181,7 @@ export function renderDescargasPage(
         const startId = parseInt((document.getElementById('startId') as HTMLInputElement).value);
         const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
         const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
+        const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
         const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
 
         if (!startId || !endId || startId > endId) {
@@ -185,6 +190,7 @@ export function renderDescargasPage(
         }
 
         downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
         stopBtn.style.display = 'inline-flex';
         updateStatus(`Iniciando descargas del ID ${startId} al ${endId}...`, 'processing');
         log(`Iniciando ciclo de descargas: ${startId} -> ${endId}`, 'info');
@@ -200,6 +206,41 @@ export function renderDescargasPage(
             updateStatus('Error fatal en descargas', 'error');
         } finally {
             downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    async function startLogDownloadLoop() {
+        const startId = parseInt((document.getElementById('startId') as HTMLInputElement).value);
+        const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
+        const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
+        const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
+
+        if (!startId || !endId || startId > endId) {
+            updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
+        stopBtn.style.display = 'inline-flex';
+        updateStatus(`Iniciando descarga de participación del ID ${startId} al ${endId}...`, 'processing');
+        log(`Iniciando ciclo de logs de participación: ${startId} -> ${endId}`, 'info');
+
+        try {
+            await window.aprendoAPI.startLogDownloads({
+                startId,
+                endId,
+                downloadPath: ''
+            });
+        } catch (error: any) {
+            log(`Error fatal: ${error.message}`, 'error');
+            updateStatus('Error fatal en descarga de logs', 'error');
+        } finally {
+            downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
             stopBtn.style.display = 'none';
         }
     }

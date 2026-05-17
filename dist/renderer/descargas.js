@@ -75,7 +75,10 @@ function renderDescargasPage(injectStyles, navigate) {
                         </div>
                         <div class="action-buttons-center" style="gap: 10px;">
                             <button class="btn btn-success btn-large" onclick="startDownloadLoop()" id="downloadBtn">
-                                ${(0, icons_1.getIcon)('play', 18)} Comenzar Descargas
+                                ${(0, icons_1.getIcon)('play', 18)} Descargar Notas
+                            </button>
+                            <button class="btn btn-info btn-large" onclick="startLogDownloadLoop()" id="logDownloadBtn">
+                                ${(0, icons_1.getIcon)('clipboard-list', 18)} Descargar Participación
                             </button>
                             <button class="btn btn-warning btn-large" onclick="stopDownloadLoop()" id="stopBtn" style="display:none;">
                                 ${(0, icons_1.getIcon)('stop', 18)} Detener
@@ -116,6 +119,7 @@ function renderDescargasPage(injectStyles, navigate) {
     window.goBack = () => navigate('home');
     window.startLoginProcess = startLoginProcess;
     window.startDownloadLoop = startDownloadLoop;
+    window.startLogDownloadLoop = startLogDownloadLoop;
     window.stopDownloadLoop = stopDownloadLoop;
     window.toggleTheme = toggleTheme;
     (0, title_bar_1.setupTitleBarActions)();
@@ -173,12 +177,14 @@ function renderDescargasPage(injectStyles, navigate) {
         const startId = parseInt(document.getElementById('startId').value);
         const endId = parseInt(document.getElementById('endId').value);
         const downloadBtn = document.getElementById('downloadBtn');
+        const logDownloadBtn = document.getElementById('logDownloadBtn');
         const stopBtn = document.getElementById('stopBtn');
         if (!startId || !endId || startId > endId) {
             updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
             return;
         }
         downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
         stopBtn.style.display = 'inline-flex';
         updateStatus(`Iniciando descargas del ID ${startId} al ${endId}...`, 'processing');
         log(`Iniciando ciclo de descargas: ${startId} -> ${endId}`, 'info');
@@ -195,6 +201,39 @@ function renderDescargasPage(injectStyles, navigate) {
         }
         finally {
             downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    }
+    async function startLogDownloadLoop() {
+        const startId = parseInt(document.getElementById('startId').value);
+        const endId = parseInt(document.getElementById('endId').value);
+        const downloadBtn = document.getElementById('downloadBtn');
+        const logDownloadBtn = document.getElementById('logDownloadBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        if (!startId || !endId || startId > endId) {
+            updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
+            return;
+        }
+        downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
+        stopBtn.style.display = 'inline-flex';
+        updateStatus(`Iniciando descarga de participación del ID ${startId} al ${endId}...`, 'processing');
+        log(`Iniciando ciclo de logs de participación: ${startId} -> ${endId}`, 'info');
+        try {
+            await window.aprendoAPI.startLogDownloads({
+                startId,
+                endId,
+                downloadPath: ''
+            });
+        }
+        catch (error) {
+            log(`Error fatal: ${error.message}`, 'error');
+            updateStatus('Error fatal en descarga de logs', 'error');
+        }
+        finally {
+            downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
             stopBtn.style.display = 'none';
         }
     }

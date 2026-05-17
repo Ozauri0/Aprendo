@@ -73,9 +73,14 @@ npx electron-builder
 ### Patrones de IPC
 El preload expone `window.aprendoAPI` con métodos seguros:
 - `window.aprendoAPI.loginAprendo(user, pass)` -> main inicia sesión con Puppeteer
-- `window.aprendoAPI.startDownloads({ startId, endId, downloadPath })`
-- `window.aprendoAPI.stopDownloads()`
+- `window.aprendoAPI.startDownloads({ startId, endId, downloadPath })` -> descarga de notas (Excel)
+- `window.aprendoAPI.startLogDownloads({ startId, endId, downloadPath })` -> descarga de logs de participación (Excel)
+- `window.aprendoAPI.stopDownloads()` -> detiene cualquier descarga en curso
 - `window.aprendoAPI.onDownloadLog(callback)` / `onDownloadStatus(callback)`
+
+### Flujo de Descargas
+1. **Notas**: Navega a `grade/export/xls/index.php?id={id}`, hace clic en `#id_submitbutton`, descarga Excel vía CDP.
+2. **Logs de participación**: Navega a `report/log/index.php?chooselog=1&showusers=0&showcourses=0&id={id}&group=&user=&date=&modid=&modaction=c&origin=&edulevel=2&logreader=logstore_standard` (parámetros: `modaction=c`=Crear, `edulevel=2`=Todos los recursos participando, resto vacío=Todos), busca enlace de descarga Excel en la página de resultados, hace clic y descarga vía CDP.
 
 ### Estado de Migración
 - [x] Preload con rutas correctas
