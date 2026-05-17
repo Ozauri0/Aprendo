@@ -20,16 +20,16 @@ export function renderTitleBar(title: string = 'Aprendo UCT', subtitle?: string)
     // Usamos controles custom en todas las plataformas para consistencia.
 
     return `
-    <div class="title-bar" id="titleBar">
+    <div class="title-bar" id="titleBar" role="navigation" aria-label="Barra de título">
         <div class="title-bar-drag"></div>
         <div class="title-bar-controls">
-            <button class="title-bar-btn title-bar-minimize" id="tbMinimize" title="Minimizar">
+            <button class="title-bar-btn title-bar-minimize" id="tbMinimize" aria-label="Minimizar ventana" title="Minimizar">
                 ${getIcon('minus', 14)}
             </button>
-            <button class="title-bar-btn title-bar-maximize" id="tbMaximize" title="Maximizar">
+            <button class="title-bar-btn title-bar-maximize" id="tbMaximize" aria-label="Maximizar ventana" title="Maximizar">
                 ${getIcon('maximize2', 14)}
             </button>
-            <button class="title-bar-btn title-bar-close" id="tbClose" title="Cerrar">
+            <button class="title-bar-btn title-bar-close" id="tbClose" aria-label="Cerrar ventana" title="Cerrar">
                 ${getIcon('x', 14)}
             </button>
         </div>
@@ -60,10 +60,12 @@ export function setupTitleBarActions(): void {
                     mainWindow.unmaximize();
                     maximizeBtn.innerHTML = getIcon('maximize2', 14);
                     maximizeBtn.title = 'Maximizar';
+                    maximizeBtn.setAttribute('aria-label', 'Maximizar ventana');
                 } else {
                     mainWindow.maximize();
                     maximizeBtn.innerHTML = getIcon('minimize2', 14);
                     maximizeBtn.title = 'Restaurar';
+                    maximizeBtn.setAttribute('aria-label', 'Restaurar ventana');
                 }
             } else {
                 const { ipcRenderer } = require('electron');
@@ -78,6 +80,7 @@ export function setupTitleBarActions(): void {
                 if (maximizeBtn) {
                     maximizeBtn.innerHTML = isMax ? getIcon('minimize2', 14) : getIcon('maximize2', 14);
                     maximizeBtn.title = isMax ? 'Restaurar' : 'Maximizar';
+                    maximizeBtn.setAttribute('aria-label', isMax ? 'Restaurar ventana' : 'Maximizar ventana');
                 }
                 document.documentElement.classList.toggle('is-maximized', isMax);
             });
@@ -89,12 +92,14 @@ export function setupTitleBarActions(): void {
                 if (maximizeBtn) {
                     maximizeBtn.innerHTML = getIcon('minimize2', 14);
                     maximizeBtn.title = 'Restaurar';
+                    maximizeBtn.setAttribute('aria-label', 'Restaurar ventana');
                 }
             });
             mainWindow.on('unmaximize', () => {
                 if (maximizeBtn) {
                     maximizeBtn.innerHTML = getIcon('maximize2', 14);
                     maximizeBtn.title = 'Maximizar';
+                    maximizeBtn.setAttribute('aria-label', 'Maximizar ventana');
                 }
             });
         }

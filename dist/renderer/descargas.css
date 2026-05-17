@@ -387,6 +387,42 @@
     }
 }
 
+@media (max-width: 480px) {
+    .control-panel {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-lg);
+    }
+    .status-display {
+        font-size: 0.875rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+        width: 100%;
+        justify-content: center;
+    }
+    .input-field {
+        font-size: 0.9375rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    .credentials-section {
+        padding: var(--spacing-md);
+    }
+    .download-progress {
+        padding: var(--spacing-md);
+    }
+    .progress-stat-value {
+        font-size: 1.25rem;
+    }
+    .download-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    .activity-log {
+        font-size: 0.75rem;
+        padding: var(--spacing-sm);
+    }
+}
+
 /* ================= TEMA OSCURO - AJUSTES ================= */
 [data-theme="dark"] .control-panel {
     background: var(--bg-card);

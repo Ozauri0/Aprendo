@@ -165,8 +165,11 @@ function showLoadingOverlay(message) {
         `;
     const overlay = document.createElement('div');
     overlay.id = 'app-loading-overlay';
+    overlay.setAttribute('role', 'alert');
+    overlay.setAttribute('aria-live', 'assertive');
+    overlay.setAttribute('aria-label', message || 'Cargando');
     overlay.innerHTML = `
-            <div class="spinner"></div>
+            <div class="spinner" aria-hidden="true"></div>
             <div class="brand">Aprendo UCT</div>
             <div class="message">${message || 'Cargando...'}</div>
         `;
@@ -241,12 +244,14 @@ function showNotification(message, type = 'info') {
     };
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'polite');
     toast.innerHTML = `
-        <span class="toast-icon">${iconMap[type] || iconMap.info}</span>
+        <span class="toast-icon" aria-hidden="true">${iconMap[type] || iconMap.info}</span>
         <div class="toast-content">
             <div class="toast-message">${message}</div>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()" title="Cerrar">&times;</button>
+        <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Cerrar notificación">&times;</button>
     `;
     container.appendChild(toast);
     // Auto-eliminar después de 3.5 segundos
@@ -295,63 +300,63 @@ function renderHomePage() {
         showConfigButton: true
     })}
 
-                <main>
-                    <div class="welcome-section">
-                        <h2>¡Bienvenido!</h2>
+                <main id="main-content" role="main">
+                    <section class="welcome-section" aria-labelledby="welcome-heading">
+                        <h2 id="welcome-heading">¡Bienvenido!</h2>
                         <p>Plataforma integral para la gestión de calificaciones y reportes académicos DGIA de la Universidad Católica de Temuco.</p>
-                    </div>
+                    </section>
 
-                    <div class="features-grid">
-                        <div class="feature-card">
+                    <section class="features-grid" aria-label="Módulos disponibles">
+                        <article class="feature-card">
                             <div class="feature-icon">${(0, icons_1.getIcon)('chart-bar', 48)}</div>
                             <h3>Consolidar Calificaciones</h3>
                             <p>Consolida y procesa archivos de calificaciones Excel de manera eficiente</p>
-                            <button class="btn btn-primary" onclick="openCalificaciones()">
+                            <button class="btn btn-primary" onclick="openCalificaciones()" aria-label="Abrir módulo de calificaciones">
                                 <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
                                 Abrir Módulo
                             </button>
-                        </div>
+                        </article>
 
-                        <div class="feature-card">
+                        <article class="feature-card">
                             <div class="feature-icon">${(0, icons_1.getIcon)('chart-line', 48)}</div>
                             <h3>Consolidar Informes</h3>
                             <p>Consolida archivos de logs e informes de actividad en un solo Excel</p>
-                            <button class="btn btn-primary" onclick="openInformes()">
+                            <button class="btn btn-primary" onclick="openInformes()" aria-label="Abrir módulo de consolidación de informes">
                                 <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
                                 Consolidar
                             </button>
-                        </div>
+                        </article>
 
-                        <div class="feature-card">
+                        <article class="feature-card">
                             <div class="feature-icon">${(0, icons_1.getIcon)('download', 48)}</div>
                             <h3>Gestor de Descargas</h3>
                             <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
-                            <button class="btn btn-primary" onclick="openDescargas()">
+                            <button class="btn btn-primary" onclick="openDescargas()" aria-label="Abrir gestor de descargas">
                                 <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
                                 Descargar
                             </button>
-                        </div>
+                        </article>
 
-                        <div class="feature-card">
+                        <article class="feature-card">
                             <div class="feature-icon">${(0, icons_1.getIcon)('settings', 48)}</div>
                             <h3>Configuración</h3>
                             <p>Personaliza parámetros y preferencias del sistema</p>
-                            <button class="btn btn-secondary" onclick="openConfig()">
+                            <button class="btn btn-secondary" onclick="openConfig()" aria-label="Abrir configuración del sistema">
                                 <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
                                 Configurar
                             </button>
-                        </div>
-                    </div>
+                        </article>
+                    </section>
 
                 </main>
             </div>
 
-            <footer>
+            <footer role="contentinfo">
                 <div class="footer-brand">
                     <span>Universidad Católica de Temuco</span>
                 </div>
                 <div class="footer-divider"></div>
-                <p>Aprendo UCT v1.0.0 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')">Christian Ferrer</a></p>
+                <p>Aprendo UCT v1.0.0 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')" aria-label="Sitio web de Christian Ferrer, abre en navegador externo">Christian Ferrer</a></p>
             </footer>
         </div>`;
     initializeApp();

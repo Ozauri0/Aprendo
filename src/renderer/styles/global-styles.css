@@ -22,20 +22,57 @@
     outline-offset: 2px;
 }
 
+/* Screen-reader-only utility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Skip link para accesibilidad */
 .skip-link {
-    position: absolute;
-    top: -40px;
-    left: 0;
+    position: fixed;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
     background: var(--uct-primary);
     color: var(--text-inverse);
-    padding: var(--spacing-sm) var(--spacing-md);
-    z-index: 100;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    z-index: 100000;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
     transition: top var(--transition-fast);
+    box-shadow: var(--shadow-lg);
 }
 
 .skip-link:focus {
     top: 0;
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+    .btn, .feature-card, .section-card, .card, header,
+    .header-secondary, .upload-area, .status-section,
+    .processing-section, .log-section, .results-section,
+    .download-area, .control-panel, .download-progress,
+    .downloads-list, .filter-section, .setting-item {
+        border: 2px solid ButtonText;
+    }
+    .feature-icon {
+        border: 2px solid ButtonText;
+    }
+    .btn-primary, .btn-success, .btn-danger {
+        background: ButtonText;
+        color: ButtonFace;
+    }
 }
 
 /* Reducir movimiento para usuarios que lo prefieren */
@@ -409,6 +446,15 @@ tr:last-child td {
     .hide-mobile {
         display: none !important;
     }
+    .toast-container {
+        left: var(--spacing-md);
+        right: var(--spacing-md);
+    }
+    .toast {
+        min-width: unset;
+        max-width: 100%;
+        width: 100%;
+    }
 }
 
 @media (min-width: 769px) {
@@ -458,6 +504,16 @@ tr:last-child td {
     font-weight: 500;
 }
 
+/* ================= MINIMUM TOUCH TARGET ================= */
+@media (pointer: coarse) {
+    button, .btn, .btn-back, .btn-config, .theme-toggle,
+    .tab-btn, .filter-item .btn-toggle, .filter-item .btn-remove,
+    .file-remove, .download-btn, .download-link {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
 /* ================= NOTIFICATION TOAST ================= */
 .toast-container {
     position: fixed;
@@ -467,6 +523,7 @@ tr:last-child td {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
+    max-width: calc(100vw - var(--spacing-xl));
 }
 
 .toast {
@@ -475,7 +532,7 @@ tr:last-child td {
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     padding: var(--spacing-md);
-    min-width: 300px;
+    min-width: 280px;
     max-width: 400px;
     display: flex;
     align-items: flex-start;

@@ -96,10 +96,11 @@ function getIcon(name, size) {
         console.warn(`[icons] Icono "${name}" no encontrado`);
         return '';
     }
+    let result = svg;
     if (size) {
-        return svg.replace(/width="24"/, `width="${size}"`).replace(/height="24"/, `height="${size}"`);
+        result = result.replace(/width="24"/, `width="${size}"`).replace(/height="24"/, `height="${size}"`);
     }
-    return svg;
+    return result.replace('<svg', '<svg aria-hidden="true"');
 }
 /**
  * Crea un span con el icono inline

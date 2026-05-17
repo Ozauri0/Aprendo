@@ -225,6 +225,39 @@
     }
 }
 
+@media (max-width: 480px) {
+    .upload-area {
+        padding: var(--spacing-md);
+    }
+    .upload-icon svg {
+        width: 40px;
+        height: 40px;
+    }
+    .upload-content h3 {
+        font-size: 0.9375rem;
+    }
+    .results-section {
+        padding: var(--spacing-md);
+    }
+    .result-stat .stat-number {
+        font-size: 1.5rem;
+    }
+    .download-area {
+        padding: var(--spacing-lg) var(--spacing-md);
+    }
+    .processed-files-section {
+        padding: var(--spacing-md);
+    }
+    .processed-file-name {
+        font-size: 0.8125rem;
+    }
+    .log-container {
+        max-height: 200px;
+        padding: var(--spacing-sm);
+        font-size: 0.75rem;
+    }
+}
+
 /* ================= TEMA OSCURO - AJUSTES ================= */
 [data-theme="dark"] .log-container {
     background: var(--bg-secondary);

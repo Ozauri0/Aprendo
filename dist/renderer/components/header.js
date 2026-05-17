@@ -14,22 +14,23 @@ function renderHeader(config) {
     // Header principal para página de inicio
     if (isHomePage) {
         return `
-            <header>
+            <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+            <header role="banner">
                 <div class="header-content">
                     <div class="header-brand">
-                        <img src="assets/logo.png" alt="UCT" class="header-logo-img">
+                        <img src="assets/logo.png" alt="Logotipo Universidad Católica de Temuco" class="header-logo-img">
                         <div class="header-text">
                             <h1>${title}</h1>
                             ${subtitle ? `<p>${subtitle}</p>` : ''}
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+                        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar entre tema claro y oscuro" title="Cambiar tema">
                             <span class="icon icon-sun">${getIcon('sun', 20)}</span>
                             <span class="icon icon-moon">${getIcon('moon', 20)}</span>
                         </button>
                         ${showConfigButton ? `
-                            <button class="btn-config" onclick="openConfig()" title="Configuración">
+                            <button class="btn-config" onclick="openConfig()" aria-label="Abrir configuración del sistema" title="Configuración">
                                 <span class="icon">${getIcon('settings', 20)}</span>
                             </button>
                         ` : ''}
@@ -40,16 +41,17 @@ function renderHeader(config) {
     }
     // Header secundario para páginas internas
     const configButtonHtml = showConfigButton ? `
-        <button class="btn-config" onclick="navigate('config')" title="Configuración">
+        <button class="btn-config" onclick="navigate('config')" aria-label="Abrir configuración del sistema" title="Configuración">
             ${getIcon('settings', 20)}
         </button>
     ` : '';
     return `
-        <header class="header-secondary">
+        <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+        <header class="header-secondary" role="banner">
             <div class="header-top">
                 <div class="header-nav">
                     ${showBackButton ? `
-                        <button class="btn-back" onclick="goBack()">
+                        <button class="btn-back" onclick="goBack()" aria-label="Volver a la página anterior">
                             ${getIcon('arrow-left', 18)} Volver
                         </button>
                     ` : ''}
@@ -59,7 +61,7 @@ function renderHeader(config) {
                     ${subtitle ? `<p>${subtitle}</p>` : ''}
                 </div>
                 <div class="header-actions">
-                    <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">
+                    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar entre tema claro y oscuro" title="Cambiar tema">
                         <span class="icon icon-sun">${getIcon('sun', 20)}</span>
                         <span class="icon icon-moon">${getIcon('moon', 20)}</span>
                     </button>
