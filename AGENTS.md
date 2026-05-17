@@ -75,12 +75,14 @@ El preload expone `window.aprendoAPI` con métodos seguros:
 - `window.aprendoAPI.loginAprendo(user, pass)` -> main inicia sesión con Puppeteer
 - `window.aprendoAPI.startDownloads({ startId, endId, downloadPath })` -> descarga de notas (Excel)
 - `window.aprendoAPI.startLogDownloads({ startId, endId, downloadPath })` -> descarga de logs de participación (Excel)
+- `window.aprendoAPI.startAttendanceDownloads({ startId, endId, downloadPath, attendanceFilter? })` -> descarga de asistencia (Excel)
 - `window.aprendoAPI.stopDownloads()` -> detiene cualquier descarga en curso
 - `window.aprendoAPI.onDownloadLog(callback)` / `onDownloadStatus(callback)`
 
 ### Flujo de Descargas
 1. **Notas**: Navega a `grade/export/xls/index.php?id={id}`, hace clic en `#id_submitbutton`, descarga Excel vía CDP.
-2. **Logs de participación**: Navega a `report/log/index.php?chooselog=1&showusers=0&showcourses=0&id={id}&group=&user=&date=&modid=&modaction=c&origin=&edulevel=2&logreader=logstore_standard` (parámetros: `modaction=c`=Crear, `edulevel=2`=Todos los recursos participando, resto vacío=Todos), busca enlace de descarga Excel en la página de resultados, hace clic y descarga vía CDP.
+2. **Logs de participación**: Navega a `report/log/index.php?chooselog=1&showusers=0&showcourses=0&id={id}&group=&user=&date=&modid=&modaction=c&origin=&edulevel=2&logreader=logstore_standard` (parámetros: `modaction=c`=Crear, `edulevel=2`=Todos los recursos participando, resto vacío=Todos), busca botón "Descargar" y descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Logs.xlsx`.
+3. **Asistencia**: Para cada ID, visita `course/view.php?id={id}`, busca TODOS los enlaces `/mod/attendance/view.php`, extrae el `attendanceId` de cada uno, navega a `mod/attendance/export.php?id={attendanceId}`, hace clic en `#id_submitbutton` (OK), descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Asistencia {nombre_modulo}.xlsx`. El usuario puede filtrar módulos por palabra clave (campo "Filtrar Asistencia", separado por comas, guardado en `localStorage.aprendo_attendance_filter`).
 
 ### Estado de Migración
 - [x] Preload con rutas correctas

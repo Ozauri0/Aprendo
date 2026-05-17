@@ -150,6 +150,52 @@ export function renderConfigPage(
 
                     <div class="filter-section">
                         <div class="filter-section-header">
+                            <h3>${getIcon('calendar', 20)} Módulos de Asistencia a Descargar</h3>
+                            <span class="section-hint">Selecciona qué módulos de asistencia descargar automáticamente</span>
+                        </div>
+
+                        <div class="settings-grid" id="attendanceModulesGrid">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Gestión Personal</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="PERSONAL" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Escritura Académica</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="ACADÉMICA" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Pensamiento Matemático</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="MATEMÁTICO" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Habilidades Comunicativas</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="COMUNICATIVAS" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
                             <h3>${getIcon('settings', 20)} Preferencias del Sistema</h3>
                             <span class="section-hint">Ajusta el comportamiento general de la aplicación</span>
                         </div>
@@ -427,6 +473,7 @@ function initializeConfigSystem() {
     console.log('=================================');
 
     loadConfiguration();
+    loadAttendanceModules();
     updateUI();
     setupEventListeners();
 
@@ -501,6 +548,11 @@ function setupEventListeners() {
         });
     }
 
+    // Attendance module checkboxes
+    document.querySelectorAll('.attendance-module-check').forEach(cb => {
+        cb.addEventListener('change', saveAttendanceModules);
+    });
+
     // Enter key para agregar filtros
     if (emailInput) {
         emailInput.addEventListener('keypress', function (e) {
@@ -519,6 +571,26 @@ function setupEventListeners() {
             }
         });
     }
+}
+
+function saveAttendanceModules() {
+    const selected: string[] = [];
+    document.querySelectorAll('.attendance-module-check').forEach(cb => {
+        if ((cb as HTMLInputElement).checked) {
+            selected.push((cb as HTMLInputElement).dataset.module || '');
+        }
+    });
+    localStorage.setItem('aprendo_attendance_filter', selected.join(','));
+}
+
+function loadAttendanceModules() {
+    const saved = localStorage.getItem('aprendo_attendance_filter');
+    if (saved === null) return;
+    const selected = saved.split(',').map(s => s.trim());
+    document.querySelectorAll('.attendance-module-check').forEach(cb => {
+        const el = cb as HTMLInputElement;
+        el.checked = selected.includes(el.dataset.module || '');
+    });
 }
 
 // Función para cambiar tabs

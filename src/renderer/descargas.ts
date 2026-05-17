@@ -78,10 +78,14 @@ export function renderDescargasPage(
                             <button class="btn btn-info btn-large" onclick="startLogDownloadLoop()" id="logDownloadBtn">
                                 ${getIcon('clipboard-list', 18)} Descargar Participación
                             </button>
+                            <button class="btn btn-secondary btn-large" onclick="startAttendanceDownloadLoop()" id="attendanceDownloadBtn">
+                                ${getIcon('calendar', 18)} Descargar Asistencia
+                            </button>
                             <button class="btn btn-warning btn-large" onclick="stopDownloadLoop()" id="stopBtn" style="display:none;">
                                 ${getIcon('stop', 18)} Detener
                             </button>
                         </div>
+                    </div>
                     </div>
                 </div>
 
@@ -121,6 +125,7 @@ export function renderDescargasPage(
     (window as any).startLoginProcess = startLoginProcess;
     (window as any).startDownloadLoop = startDownloadLoop;
     (window as any).startLogDownloadLoop = startLogDownloadLoop;
+    (window as any).startAttendanceDownloadLoop = startAttendanceDownloadLoop;
     (window as any).stopDownloadLoop = stopDownloadLoop;
     (window as any).toggleTheme = toggleTheme;
     setupTitleBarActions();
@@ -182,6 +187,7 @@ export function renderDescargasPage(
         const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
         const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
         const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const attendanceDownloadBtn = document.getElementById('attendanceDownloadBtn') as HTMLButtonElement;
         const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
 
         if (!startId || !endId || startId > endId) {
@@ -191,6 +197,7 @@ export function renderDescargasPage(
 
         downloadBtn.disabled = true;
         logDownloadBtn.disabled = true;
+        attendanceDownloadBtn.disabled = true;
         stopBtn.style.display = 'inline-flex';
         updateStatus(`Iniciando descargas del ID ${startId} al ${endId}...`, 'processing');
         log(`Iniciando ciclo de descargas: ${startId} -> ${endId}`, 'info');
@@ -207,6 +214,7 @@ export function renderDescargasPage(
         } finally {
             downloadBtn.disabled = false;
             logDownloadBtn.disabled = false;
+            attendanceDownloadBtn.disabled = false;
             stopBtn.style.display = 'none';
         }
     }
@@ -216,6 +224,7 @@ export function renderDescargasPage(
         const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
         const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
         const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const attendanceDownloadBtn = document.getElementById('attendanceDownloadBtn') as HTMLButtonElement;
         const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
 
         if (!startId || !endId || startId > endId) {
@@ -225,6 +234,7 @@ export function renderDescargasPage(
 
         downloadBtn.disabled = true;
         logDownloadBtn.disabled = true;
+        attendanceDownloadBtn.disabled = true;
         stopBtn.style.display = 'inline-flex';
         updateStatus(`Iniciando descarga de participación del ID ${startId} al ${endId}...`, 'processing');
         log(`Iniciando ciclo de logs de participación: ${startId} -> ${endId}`, 'info');
@@ -241,6 +251,46 @@ export function renderDescargasPage(
         } finally {
             downloadBtn.disabled = false;
             logDownloadBtn.disabled = false;
+            attendanceDownloadBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    async function startAttendanceDownloadLoop() {
+        const startId = parseInt((document.getElementById('startId') as HTMLInputElement).value);
+        const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
+        const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
+        const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const attendanceDownloadBtn = document.getElementById('attendanceDownloadBtn') as HTMLButtonElement;
+        const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
+        const filter = localStorage.getItem('aprendo_attendance_filter') || '';
+
+        if (!startId || !endId || startId > endId) {
+            updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
+        attendanceDownloadBtn.disabled = true;
+        stopBtn.style.display = 'inline-flex';
+        updateStatus(`Iniciando descarga de asistencia del ID ${startId} al ${endId}...`, 'processing');
+        log(`Iniciando ciclo de asistencia: ${startId} -> ${endId}${filter ? ' (filtro: ' + filter + ')' : ''}`, 'info');
+
+        try {
+            await window.aprendoAPI.startAttendanceDownloads({
+                startId,
+                endId,
+                downloadPath: '',
+                attendanceFilter: filter
+            } as any);
+        } catch (error: any) {
+            log(`Error fatal: ${error.message}`, 'error');
+            updateStatus('Error fatal en descarga de asistencia', 'error');
+        } finally {
+            downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
+            attendanceDownloadBtn.disabled = false;
             stopBtn.style.display = 'none';
         }
     }

@@ -13,16 +13,15 @@ let currentCredentials = { username: '', password: '' };
 let isDownloading = false;
 let shouldStop = false;
 let isDownloadingLogs = false;
+let isDownloadingAttendance = false;
 
-function renameDownloadedFile(downloadPath: string, existingFiles: Set<string>): string | null {
+function renameDownloadedFile(downloadPath: string, existingFiles: Set<string>, label: string): string | null {
   try {
     const currentFiles = fs.readdirSync(downloadPath);
     const newFiles = currentFiles.filter(f => !existingFiles.has(f));
 
     const targetFile = newFiles.find(f =>
-      f.startsWith('logs_') && (f.endsWith('.xlsx') || f.endsWith('.xls'))
-    ) || newFiles.find(f =>
-      f.endsWith('.xlsx') || f.endsWith('.xls')
+      (f.endsWith('.xlsx') || f.endsWith('.xls'))
     );
 
     if (!targetFile) return null;
@@ -31,11 +30,11 @@ function renameDownloadedFile(downloadPath: string, existingFiles: Set<string>):
     const ext = path.extname(targetFile);
 
     const cleanName = targetFile
-      .replace(/^logs_/, '')
+      .replace(/^(logs_|asistencia_|attendance_)/i, '')
       .replace(/_\d{8}-\d{4}/, '')
       .replace(ext, '');
 
-    const newName = `${cleanName} Logs${ext}`;
+    const newName = `${cleanName} ${label}${ext}`;
     const newPath = path.join(downloadPath, newName);
 
     if (fs.existsSync(oldPath)) {
@@ -346,7 +345,7 @@ async function startLogDownloadLoop(startId: number, endId: number, webContents:
               const filesBefore = getCurrentFiles(downloadPath);
               await btn.click();
               await new Promise(r => setTimeout(r, 6000));
-              const newName = renameDownloadedFile(downloadPath, filesBefore);
+              const newName = renameDownloadedFile(downloadPath, filesBefore, 'Logs');
               if (newName) {
                 logToRenderer(webContents, `Archivo renombrado: ${newName}`, 'success');
               }
@@ -376,7 +375,7 @@ async function startLogDownloadLoop(startId: number, endId: number, webContents:
             const filesBefore = getCurrentFiles(downloadPath);
             await (excelLink.asElement()! as any).click();
             await new Promise(r => setTimeout(r, 6000));
-            const newName = renameDownloadedFile(downloadPath, filesBefore);
+            const newName = renameDownloadedFile(downloadPath, filesBefore, 'Logs');
             if (newName) {
               logToRenderer(webContents, `Archivo renombrado: ${newName}`, 'success');
             }
@@ -408,6 +407,187 @@ async function startLogDownloadLoop(startId: number, endId: number, webContents:
     sendStatus(webContents, 'Error fatal en descarga de logs', 'error');
   } finally {
     isDownloadingLogs = false;
+  }
+}
+
+async function startAttendanceDownloadLoop(startId: number, endId: number, webContents: WebContents, attendanceFilter?: string) {
+  if (!startId || !endId || startId > endId) {
+    throw new Error('Rango de IDs inválido.');
+  }
+
+  isDownloadingAttendance = true;
+  shouldStop = false;
+  sendStatus(webContents, `Iniciando descarga de asistencia del ID ${startId} al ${endId}...`, 'processing');
+  logToRenderer(webContents, `Iniciando ciclo de asistencia: ${startId} -> ${endId}`, 'info');
+
+  try {
+    let page = globalPage;
+    let browser = globalBrowser;
+
+    let isConnected = false;
+    if (browser) {
+      try { await browser.pages(); isConnected = true; } catch { isConnected = false; }
+    }
+
+    if (!browser || !isConnected) {
+      logToRenderer(webContents, 'Sesión perdida. Reconectando...', 'warning');
+      const session = await launchAndLogin(currentCredentials.username, currentCredentials.password, webContents);
+      globalBrowser = session.browser;
+      globalPage = session.page;
+      browser = globalBrowser;
+      page = globalPage;
+    }
+
+    if (!page || !browser) {
+      throw new Error('No hay sesión de navegador activa.');
+    }
+
+    const client = await page.target().createCDPSession();
+    const downloadPath = path.join(os.homedir(), 'Downloads', 'Aprendo_Export');
+
+    await client.send('Page.setDownloadBehavior', {
+      behavior: 'allow',
+      downloadPath
+    });
+
+    logToRenderer(webContents, `Carpeta de descarga: ${downloadPath}`, 'info');
+
+    let successCount = 0;
+    let emptyCount = 0;
+
+    for (let id = startId; id <= endId; id++) {
+      if (shouldStop) {
+        logToRenderer(webContents, 'Descarga de asistencia detenida por el usuario.', 'warning');
+        break;
+      }
+
+      sendStatus(webContents, `Procesando asistencia ID: ${id}`, 'processing');
+      logToRenderer(webContents, `Buscando módulo de asistencia en curso ID: ${id}...`, 'info');
+
+      const courseUrl = `https://aprendo.uct.cl/course/view.php?id=${id}`;
+
+      try {
+        try { await browser.pages(); } catch {
+          logToRenderer(webContents, 'Conexión perdida. Reconectando...', 'warning');
+          const session = await launchAndLogin(currentCredentials.username, currentCredentials.password, webContents);
+          globalBrowser = session.browser;
+          globalPage = session.page;
+          browser = globalBrowser;
+          page = globalPage;
+          const newClient = await page.target().createCDPSession();
+          await newClient.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath });
+        }
+
+        await page.goto(courseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        if (await page.$('#inputName')) {
+          logToRenderer(webContents, `   Sesión perdida para ID ${id}.`, 'error');
+          try { await browser.close(); } catch { /* ignore */ }
+          globalBrowser = null;
+          emptyCount++;
+          continue;
+        }
+
+        const attendanceLinks = await page.$$eval('a[href*="/mod/attendance/view.php"]', (links: HTMLAnchorElement[]) =>
+          links.map((l: HTMLAnchorElement) => ({
+            text: l.textContent?.trim() || '',
+            href: l.href
+          }))
+        );
+
+        let filteredLinks = attendanceLinks;
+        if (attendanceFilter) {
+          const keywords = attendanceFilter.split(',').map(k => k.trim().toUpperCase()).filter(k => k);
+          filteredLinks = attendanceLinks.filter(l =>
+            keywords.some(k => l.text.toUpperCase().includes(k))
+          );
+          logToRenderer(webContents, `   ${attendanceLinks.length} módulo(s) encontrados, ${filteredLinks.length} coinciden con filtro "${attendanceFilter}".`, 'info');
+        }
+
+        if (filteredLinks.length === 0) {
+          logToRenderer(webContents, `   No se encontró módulo de asistencia para ID ${id}.`, 'warning');
+          emptyCount++;
+          continue;
+        }
+
+        logToRenderer(webContents, `   ${filteredLinks.length} módulo(s) de asistencia a descargar.`, 'info');
+
+        for (const linkData of filteredLinks) {
+          if (shouldStop) break;
+
+          const attendanceIdMatch = linkData.href.match(/id=(\d+)/);
+          if (!attendanceIdMatch) {
+            logToRenderer(webContents, `   No se pudo extraer ID de: ${linkData.text}`, 'warning');
+            continue;
+          }
+
+          const attendanceId = attendanceIdMatch[1];
+          const shortName = linkData.text.replace(/ASISTENCIA\s*/i, '').trim().substring(0, 30);
+          logToRenderer(webContents, `   Módulo: "${linkData.text}" (ID: ${attendanceId})`, 'info');
+
+        const exportUrl = `https://aprendo.uct.cl/mod/attendance/export.php?id=${attendanceId}`;
+        logToRenderer(webContents, `   Navegando a exportación...`, 'info');
+        await page.goto(exportUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        await new Promise(r => setTimeout(r, 1500));
+
+        const filesBefore = getCurrentFiles(downloadPath);
+
+        const submitted = await page.evaluate(() => {
+          const form = document.querySelector('form.mform') as HTMLFormElement;
+          if (!form) return false;
+
+          const ensureChecked = (el: HTMLInputElement | null, val: boolean) => {
+            if (el) el.checked = val;
+          };
+
+          ensureChecked(document.getElementById('id_includenottaken') as HTMLInputElement, false);
+          ensureChecked(document.getElementById('id_includeremarks') as HTMLInputElement, false);
+          ensureChecked(document.getElementById('id_includedescription') as HTMLInputElement, false);
+          ensureChecked(document.getElementById('id_includeallsessions') as HTMLInputElement, true);
+          ensureChecked(document.getElementById('id_ident_id') as HTMLInputElement, true);
+          ensureChecked(document.getElementById('id_ident_idnumber') as HTMLInputElement, true);
+          ensureChecked(document.getElementById('id_ident_email') as HTMLInputElement, true);
+          ensureChecked(document.getElementById('id_ident_institution') as HTMLInputElement, true);
+
+          const submitBtn = document.getElementById('id_submitbutton') as HTMLInputElement;
+          if (submitBtn) {
+            submitBtn.click();
+            return true;
+          }
+          return false;
+        });
+
+        if (submitted) {
+          await new Promise(r => setTimeout(r, 6000));
+          const label = `Asistencia ${shortName}`;
+          const newName = renameDownloadedFile(downloadPath, filesBefore, label);
+          if (newName) {
+            logToRenderer(webContents, `   Archivo: ${newName}`, 'success');
+          }
+          successCount++;
+        } else {
+          logToRenderer(webContents, `   No se pudo enviar el formulario para ID ${id}.`, 'warning');
+          emptyCount++;
+        }
+
+        } // end for each attendance module
+
+      } catch (err: any) {
+        logToRenderer(webContents, `Error procesando asistencia ID ${id}: ${err.message}`, 'error');
+        emptyCount++;
+      }
+
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    sendStatus(webContents, `Asistencia finalizada. Descargas: ${successCount}, Sin datos/Error: ${emptyCount}`, 'success');
+    logToRenderer(webContents, 'Ciclo de descarga de asistencia completado.', 'success');
+  } catch (error: any) {
+    logToRenderer(webContents, `Error fatal en ciclo de asistencia: ${error.message}`, 'error');
+    sendStatus(webContents, 'Error fatal en descarga de asistencia', 'error');
+  } finally {
+    isDownloadingAttendance = false;
   }
 }
 
@@ -443,6 +623,14 @@ export function registerDownloadHandlers() {
     }
     await startLogDownloadLoop(args.startId, args.endId, _event.sender);
     return { success: true, message: 'Descargas de logs completadas' };
+  });
+
+  ipcMain.handle('puppeteer:download-attendance', async (_event: IpcMainInvokeEvent, args: { startId: number; endId: number; downloadPath?: string; attendanceFilter?: string }) => {
+    if (isDownloadingAttendance) {
+      return { success: false, message: 'Ya hay una descarga de asistencia en curso.' };
+    }
+    await startAttendanceDownloadLoop(args.startId, args.endId, _event.sender, args.attendanceFilter);
+    return { success: true, message: 'Descargas de asistencia completadas' };
   });
 
   ipcMain.handle('puppeteer:stop', async () => {
