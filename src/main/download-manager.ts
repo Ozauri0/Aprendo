@@ -633,6 +633,60 @@ export function registerDownloadHandlers() {
     return { success: true, message: 'Descargas de asistencia completadas' };
   });
 
+  ipcMain.handle('puppeteer:fetch-courses', async (_event: IpcMainInvokeEvent) => {
+    try {
+      const page = globalPage;
+      if (!page) return { success: false, message: 'No hay sesión activa.' };
+
+      await page.goto('https://aprendo.uct.cl/my/', { waitUntil: 'networkidle2', timeout: 30000 });
+
+      const courses = await page.$$eval('.coursebox, .course_listitem, .dashboard-card, .card.dashboard-card', (els: Element[]) =>
+        els.map((el: Element) => {
+          const nameEl = el.querySelector('.coursename, .course-title, .card-title, h3') as HTMLElement;
+          const linkEl = el.querySelector('a[href*="course/view.php"]') as HTMLAnchorElement;
+          const name = nameEl?.textContent?.trim() || '';
+          const href = linkEl?.href || '';
+          const idMatch = href.match(/id=(\d+)/);
+          const yearMatch = name.match(/\b(20\d{2})\b/);
+          const semMatch = name.match(/I+\s*Semestre/i);
+          const semMatch2 = name.match(/II\s*Semestre/i);
+          return {
+            name: name.substring(0, 80),
+            id: idMatch ? parseInt(idMatch[1]) : 0,
+            year: yearMatch ? parseInt(yearMatch[1]) : 0,
+            semester: semMatch2 ? 2 : (semMatch ? 1 : 0)
+          };
+        })
+      );
+
+      if (courses.length === 0) {
+        const links = await page.$$eval('a[href*="course/view.php?id="]', (links: HTMLAnchorElement[]) =>
+          links.map(l => {
+            const name = l.textContent?.trim()?.substring(0, 80) || '';
+            const id = parseInt((l.href.match(/id=(\d+)/) || ['', '0'])[1]);
+            const yearMatch = name.match(/\b(20\d{2})\b/);
+            const semMatch = name.match(/I+\s*Semestre/i);
+            const semMatch2 = name.match(/II\s*Semestre/i);
+            return {
+              name,
+              id,
+              year: yearMatch ? parseInt(yearMatch[1]) : 0,
+              semester: semMatch2 ? 2 : (semMatch ? 1 : 0)
+            };
+          })
+        );
+        const unique = links.filter((c: { id: number; name: string }, i: number, arr: typeof links) =>
+          c.id > 0 && arr.findIndex(x => x.id === c.id) === i
+        );
+        return { success: true, courses: unique };
+      }
+
+      return { success: true, courses };
+    } catch (e: any) {
+      return { success: false, message: e.message };
+    }
+  });
+
   ipcMain.handle('puppeteer:stop', async () => {
     shouldStop = true;
     return { success: true, message: 'Detención solicitada' };

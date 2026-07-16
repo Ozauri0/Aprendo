@@ -24,6 +24,8 @@ const api = {
 
   stopDownloads: () => ipcRenderer.invoke('puppeteer:stop'),
 
+  fetchCourses: () => ipcRenderer.invoke('puppeteer:fetch-courses'),
+
   // Progress callbacks
   onDownloadLog: (callback: (data: import('../shared/types').DownloadProgress) => void) => {
     const handler = (_event: IpcRendererEvent, data: import('../shared/types').DownloadProgress) => callback(data);

@@ -368,6 +368,21 @@
 }
 
 /* ================= RESPONSIVE ================= */
+@media (max-width: 1024px) {
+    .descargas-layout {
+        flex-direction: column;
+    }
+    .descargas-sidebar {
+        width: 100%;
+    }
+    .descargas-courses {
+        max-height: none;
+    }
+    .descargas-courses-grid {
+        max-height: 50vh;
+    }
+}
+
 @media (max-width: 768px) {
     .control-panel {
         padding: var(--spacing-lg);
@@ -384,6 +399,23 @@
     .btn-large {
         width: 100%;
         justify-content: center;
+    }
+    .descargas-search-row {
+        flex-direction: column;
+    }
+    .descargas-layout {
+        gap: var(--spacing-md);
+    }
+    .descargas-sidebar {
+        gap: var(--spacing-md);
+    }
+    .course-card {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+    }
+    .course-card-actions {
+        width: 100%;
+        justify-content: flex-end;
     }
 }
 
@@ -420,6 +452,22 @@
     .activity-log {
         font-size: 0.75rem;
         padding: var(--spacing-sm);
+    }
+    .descargas-courses-grid {
+        grid-template-columns: 1fr;
+    }
+    .course-card {
+        flex-wrap: wrap;
+    }
+    .course-card-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    .descargas-sidebar {
+        gap: var(--spacing-md);
+    }
+    .descargas-courses-header {
+        padding: var(--spacing-md);
     }
 }
 
@@ -475,16 +523,231 @@
 
 /* ================= ACTIVITY LOG ================= */
 .activity-log {
-    max-height: 300px;
+    max-height: none;
     overflow-y: auto;
     background: var(--bg-tertiary);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     font-family: var(--font-mono);
     font-size: 0.8125rem;
+    line-height: 1.7;
     scroll-behavior: smooth;
 }
 
 [data-theme="dark"] .activity-log {
     background: var(--bg-secondary);
+}
+
+/* ================= FULL-WIDTH OVERRIDE ================= */
+.descargas-layout {
+    display: flex;
+    gap: var(--spacing-xl);
+    flex: 1;
+}
+
+/* Post-login: full width layout */
+.page-scroll.descargas-expanded .container {
+    max-width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.descargas-courses {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    min-width: 0;
+}
+
+.descargas-courses-header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-card);
+}
+
+.descargas-courses-header h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.descargas-login-form {
+    padding: var(--spacing-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.descargas-search-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.descargas-courses-grid {
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+    align-content: start;
+}
+
+.course-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    gap: var(--spacing-sm);
+    min-height: 64px;
+}
+
+.course-card:hover {
+    border-color: var(--uct-primary);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.course-card-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+    gap: 2px;
+}
+
+.course-card-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+}
+
+.course-card-id {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.course-card-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.course-card-actions .btn {
+    padding: 4px 8px;
+    min-width: 36px;
+}
+
+.descargas-sidebar {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    flex-shrink: 0;
+}
+
+.descargas-sidebar-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+}
+
+.descargas-terminal-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 200px;
+}
+
+.descargas-terminal-panel .activity-log {
+    flex: 1;
+    min-height: 0;
+}
+
+.panel-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* ================= PAGINACIÓN ================= */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-card);
+    flex-wrap: wrap;
+}
+
+.pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    min-width: 100px;
+    justify-content: center;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border-color: var(--border-color);
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ================= RESPONSIVE MEJORAS ================= */
+@media (max-width: 768px) {
+    .descargas-courses-grid {
+        grid-template-columns: 1fr;
+    }
+    .pagination-bar {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    .pagination-btn {
+        width: 100%;
+        min-width: auto;
+    }
+    .pagination-info {
+        order: -1;
+    }
 }
