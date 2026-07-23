@@ -354,6 +354,11 @@ html.is-maximized body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* Permite que la cadena de flex propague la altura acotada del body
+       a sus hijos (header + main) sin que el contenido más grande (p. ej.
+       una grilla de cursos o un log de actividad) haga crecer la página
+       y fuerce el scroll principal. */
+    min-height: 0;
 }
 
 /* ================= HEADER PRINCIPAL ================= */
@@ -1571,6 +1576,10 @@ footer .footer-divider {
 /* ================= CONTENIDO PRINCIPAL ================= */
 main {
     flex: 1;
+    /* min-height: 0 permite que <main> se encoja dentro del flex column
+       para que sus hijos (p. ej. sidebars con scroll interno) no crezcan
+       la página hasta disparar el scroll principal. */
+    min-height: 0;
 }
 
 /* ================= CARDS GENERALES ================= */

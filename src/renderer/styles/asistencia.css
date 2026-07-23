@@ -1,0 +1,86 @@
+/* asistencia.css - Estilos específicos del módulo Consolidar Asistencia */
+
+/* Encabezado de grupo de curso dentro de la lista de archivos */
+.course-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.course-group-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--uct-primary);
+}
+
+.course-group-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px var(--spacing-sm);
+    border-radius: var(--radius-full);
+    border: 1px solid transparent;
+}
+
+.course-group-badge.badge-ok {
+    color: var(--success-color);
+    background: var(--success-bg);
+    border-color: var(--success-border);
+}
+
+.course-group-badge.badge-warn {
+    color: var(--warning-color);
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
+/* Archivo de módulo dentro de un grupo (leve sangría visual) */
+.file-item-module {
+    padding-left: var(--spacing-xl);
+}
+
+.module-tag {
+    font-size: 0.8em;
+    color: var(--uct-primary-light);
+    margin-top: 2px;
+}
+
+/* Lista de archivos consolidados descargables */
+.course-downloads {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    max-height: 320px;
+    overflow-y: auto;
+    margin-top: var(--spacing-md);
+    padding-right: var(--spacing-xs);
+}
+
+.course-downloads .download-btn {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.course-downloads .download-subtitle {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    font-weight: 400;
+}
+
+/* Tema oscuro */
+[data-theme="dark"] .course-group-name {
+    color: var(--uct-accent);
+}
+
+[data-theme="dark"] .module-tag {
+    color: var(--uct-accent);
+}

@@ -59,7 +59,7 @@ function renderDescargasPage(injectStyles, navigate) {
                         <div class="descargas-courses-header">
                             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                                 <h2>${(0, icons_1.getIcon)('book-open', 20)} Cursos Disponibles</h2>
-                                <div class="status-display status-idle" id="statusDisplay">
+                                <div class="status-display status-idle" id="statusDisplay" role="status" aria-live="polite">
                                     <span class="status-icon">${(0, icons_1.getIcon)('info', 18)}</span>
                                     <span class="status-text">Listo</span>
                                 </div>
@@ -117,10 +117,22 @@ function renderDescargasPage(injectStyles, navigate) {
                         </div>
 
                         <div class="descargas-sidebar-panel descargas-terminal-panel">
-                            <div class="panel-title">
-                                <span class="icon">${(0, icons_1.getIcon)('list', 18)}</span> Registro de Actividad
+                            <div class="log-panel-header">
+                                <h3 class="log-panel-title">
+                                    <span class="icon">${(0, icons_1.getIcon)('list', 16)}</span>
+                                    Registro de Actividad
+                                    <span class="log-panel-counter" id="logCounter" title="Cantidad de entradas">0</span>
+                                </h3>
+                                <div class="log-panel-actions" role="toolbar" aria-label="Acciones del registro">
+                                    <button class="btn-icon" id="copyLogBtn" title="Copiar registro al portapapeles" aria-label="Copiar registro al portapapeles" disabled>
+                                        ${(0, icons_1.getIcon)('copy', 14)}
+                                    </button>
+                                    <button class="btn-icon" id="clearLogBtn" title="Limpiar registro" aria-label="Limpiar registro" disabled>
+                                        ${(0, icons_1.getIcon)('trash-2', 14)}
+                                    </button>
+                                </div>
                             </div>
-                            <div id="activityLog" class="activity-log"></div>
+                            <div id="activityLog" class="activity-log" role="log" aria-live="polite" aria-label="Registro de actividad de descargas"></div>
                         </div>
                     </aside>
                 </div>
@@ -138,6 +150,9 @@ function renderDescargasPage(injectStyles, navigate) {
     `;
     const activityLog = document.getElementById('activityLog');
     const statusDisplay = document.getElementById('statusDisplay');
+    const logCounter = document.getElementById('logCounter');
+    const clearLogBtn = document.getElementById('clearLogBtn');
+    const copyLogBtn = document.getElementById('copyLogBtn');
     log('Módulo de descargas inicializado', 'info');
     updateStatus('Esperando inicio de sesión...', 'idle');
     // Subscribe to IPC events from main process
@@ -169,15 +184,110 @@ function renderDescargasPage(injectStyles, navigate) {
     window.goToPage = goToPage;
     window.nextPage = nextPage;
     window.prevPage = prevPage;
+    window.clearActivityLog = clearLog;
     (0, title_bar_1.setupTitleBarActions)();
+    /**
+     * Auto-scroll inteligente: solo hace scroll al fondo si el usuario
+     * ya estaba cerca del fondo. Si el usuario scrolleó hacia arriba
+     * para leer historial, respetamos su posición. Marcamos visualmente
+     * el contenedor cuando el usuario se ha "despegado" del fondo.
+     */
+    function isScrolledToBottom(el, threshold = 32) {
+        return el.scrollHeight - el.clientHeight - el.scrollTop <= threshold;
+    }
+    function updateLogUI() {
+        const count = activityLog.children.length;
+        if (logCounter)
+            logCounter.textContent = String(count);
+        const hasContent = count > 0;
+        if (clearLogBtn)
+            clearLogBtn.disabled = !hasContent;
+        if (copyLogBtn)
+            copyLogBtn.disabled = !hasContent;
+    }
     function log(message, type = 'info') {
+        // Si el usuario está cerca del fondo, mantenemos el auto-scroll.
+        // Si scrolleó hacia arriba, NO lo movemos para respetar su lectura.
+        const shouldStickToBottom = isScrolledToBottom(activityLog);
         const now = new Date().toLocaleTimeString();
         const entry = document.createElement('div');
         entry.className = `log-entry log-${type}`;
         entry.innerHTML = `<span class="log-time">[${now}]</span> ${message}`;
         activityLog.appendChild(entry);
-        activityLog.scrollTop = activityLog.scrollHeight;
+        updateLogUI();
+        if (shouldStickToBottom) {
+            // Forzar el siguiente frame para que el scrollTop se aplique
+            // después de que el browser haya calculado el nuevo scrollHeight.
+            requestAnimationFrame(() => {
+                activityLog.scrollTop = activityLog.scrollHeight;
+                activityLog.removeAttribute('data-user-scrolled');
+            });
+        }
+        else {
+            activityLog.setAttribute('data-user-scrolled', 'true');
+        }
     }
+    function clearLog() {
+        // Solo permitir limpiar cuando no hay descarga activa
+        const stopBtn = document.getElementById('stopBtn');
+        if (stopBtn && stopBtn.style.display !== 'none') {
+            log('No se puede limpiar el registro mientras hay una descarga activa.', 'warning');
+            return;
+        }
+        activityLog.innerHTML = '';
+        updateLogUI();
+        log('Registro limpiado.', 'info');
+    }
+    async function copyLog() {
+        if (activityLog.children.length === 0)
+            return;
+        const text = Array.from(activityLog.children)
+            .map((el) => el.innerText.trim())
+            .join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            // Feedback visual breve: deshabilitar botón y cambiar title
+            const originalTitle = copyLogBtn.title;
+            copyLogBtn.title = '¡Copiado!';
+            copyLogBtn.disabled = true;
+            setTimeout(() => {
+                copyLogBtn.title = originalTitle;
+                updateLogUI();
+            }, 1200);
+        }
+        catch (e) {
+            // Fallback: select + execCommand para entornos sin clipboard API
+            try {
+                const range = document.createRange();
+                range.selectNodeContents(activityLog);
+                const sel = window.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+                document.execCommand('copy');
+                sel?.removeAllRanges();
+                log('Registro copiado al portapapeles.', 'success');
+            }
+            catch {
+                log('No se pudo copiar el registro.', 'error');
+            }
+        }
+    }
+    // Wire up log panel buttons
+    if (clearLogBtn)
+        clearLogBtn.addEventListener('click', clearLog);
+    if (copyLogBtn)
+        copyLogBtn.addEventListener('click', copyLog);
+    // Detectar scroll manual del usuario para mostrar/ocultar el indicador
+    // "user-scrolled". Se usa para futuros refinamientos del auto-scroll.
+    activityLog.addEventListener('scroll', () => {
+        if (isScrolledToBottom(activityLog)) {
+            activityLog.removeAttribute('data-user-scrolled');
+        }
+        else {
+            activityLog.setAttribute('data-user-scrolled', 'true');
+        }
+    });
+    updateLogUI();
     function updateStatus(text, type) {
         if (!statusDisplay)
             return;
@@ -227,7 +337,7 @@ function renderDescargasPage(injectStyles, navigate) {
         try {
             const result = await window.aprendoAPI.fetchCourses();
             if (result.success && result.courses) {
-                allCourses = result.courses;
+                allCourses = [...result.courses].sort((a, b) => a.id - b.id);
                 populateFilters();
                 currentFilteredCourses = allCourses;
                 currentPage = 1;
@@ -339,7 +449,7 @@ function renderDescargasPage(injectStyles, navigate) {
             const semValue = parseInt(semester);
             filtered = filtered.filter(c => c.semester === semValue || (semValue === 1 && c.semester === 0));
         }
-        currentFilteredCourses = filtered;
+        currentFilteredCourses = [...filtered].sort((a, b) => a.id - b.id);
         currentPage = 1;
         renderPagedCourses();
     }

@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, screen, ipcMain, dialog } from 'electron';
 import path from 'path';
+import { promises as fsp } from 'fs';
 import { registerDownloadHandlers } from './download-manager';
 
 let mainWindow: BrowserWindow | null = null;
@@ -140,9 +141,60 @@ function registerWindowHandlers() {
   ipcMain.on('window:resize-end', () => stopResize());
 }
 
+// Guarda varios archivos en una carpeta elegida por el usuario (un solo dialog).
+// Usado por el módulo de asistencia para evitar 30 dialogs de "Save As" al consolidar.
+function registerBatchSaveHandler() {
+  ipcMain.handle(
+    'files:save-batch',
+    async (
+      _e,
+      args: import('../shared/types').BatchSaveArgs
+    ): Promise<import('../shared/types').BatchSaveResult> => {
+      if (!mainWindow) {
+        return { success: false, count: 0, errors: ['No hay ventana activa'] };
+      }
+      if (!args?.files?.length) {
+        return { success: false, count: 0, errors: ['No hay archivos para guardar'] };
+      }
+
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Selecciona la carpeta donde guardar los archivos',
+        buttonLabel: 'Guardar aquí',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, count: 0, cancelled: true };
+      }
+
+      const folder = result.filePaths[0];
+      const errors: string[] = [];
+      let count = 0;
+
+      for (const file of args.files) {
+        try {
+          const filePath = path.join(folder, file.name);
+          await fsp.writeFile(filePath, Buffer.from(file.buffer));
+          count++;
+        } catch (err) {
+          errors.push(`${file.name}: ${(err as Error).message}`);
+        }
+      }
+
+      return {
+        success: errors.length === 0,
+        count,
+        folderPath: folder,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    }
+  );
+}
+
 app.whenReady().then(async () => {
   registerDownloadHandlers();
   registerWindowHandlers();
+  registerBatchSaveHandler();
   // Calentar dependencias en segundo plano antes de mostrar UI
   warmMainDependencies();
   createWindow();

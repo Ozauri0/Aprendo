@@ -1,6 +1,7 @@
 // renderer.ts - Lógica del frontend de la aplicación
 import * as calificaciones from './calificaciones';
 import * as informes from './informes';
+import * as asistencia from './asistencia';
 import * as config from './config';
 import * as descargas from './descargas';
 import { getIcon } from './icons';
@@ -61,6 +62,11 @@ function mountCurrentRoute() {
     case 'informes':
         if (typeof informes.renderInformesPage === 'function') {
             informes.renderInformesPage(injectStylesFromFiles, navigate);
+        }
+        break;
+    case 'asistencia':
+        if (typeof asistencia.renderAsistenciaPage === 'function') {
+            asistencia.renderAsistenciaPage(injectStylesFromFiles, navigate);
         }
         break;
     case 'config':
@@ -197,6 +203,11 @@ function openInformes() {
     navigate('informes');
 }
 
+function openAsistencia() {
+    showNotification('Abriendo consolidador de asistencia...', 'info');
+    navigate('asistencia');
+}
+
 
 
 function openConfig() {
@@ -320,22 +331,22 @@ function renderHomePage() {
                         </article>
 
                         <article class="feature-card">
+                            <div class="feature-icon">${getIcon('clipboard-list', 48)}</div>
+                            <h3>Consolidar Asistencia</h3>
+                            <p>Agrupa los Excel de asistencia por curso en un archivo con una hoja por módulo</p>
+                            <button class="btn btn-primary" onclick="openAsistencia()" aria-label="Abrir módulo de consolidación de asistencia">
+                                <span class="icon">${getIcon('chevron-right', 18)}</span>
+                                Consolidar
+                            </button>
+                        </article>
+
+                        <article class="feature-card">
                             <div class="feature-icon">${getIcon('download', 48)}</div>
                             <h3>Gestor de Descargas</h3>
                             <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
                             <button class="btn btn-primary" onclick="openDescargas()" aria-label="Abrir gestor de descargas">
                                 <span class="icon">${getIcon('chevron-right', 18)}</span>
                                 Descargar
-                            </button>
-                        </article>
-
-                        <article class="feature-card">
-                            <div class="feature-icon">${getIcon('settings', 48)}</div>
-                            <h3>Configuración</h3>
-                            <p>Personaliza parámetros y preferencias del sistema</p>
-                            <button class="btn btn-secondary" onclick="openConfig()" aria-label="Abrir configuración del sistema">
-                                <span class="icon">${getIcon('chevron-right', 18)}</span>
-                                Configurar
                             </button>
                         </article>
                     </section>
@@ -383,6 +394,7 @@ function toggleTheme() {
 // Exportar funciones para uso global
 (window as any).openCalificaciones = openCalificaciones;
 (window as any).openInformes = openInformes;
+(window as any).openAsistencia = openAsistencia;
 (window as any).openConfig = openConfig;
 (window as any).openDescargas = openDescargas;
 (window as any).toggleTheme = toggleTheme;

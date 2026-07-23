@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
+const fs_1 = require("fs");
 const download_manager_1 = require("./download-manager");
 let mainWindow = null;
 // Precalienta dependencias pesadas para evitar congelamientos al primer uso
@@ -186,9 +187,49 @@ function registerWindowHandlers() {
     });
     electron_1.ipcMain.on('window:resize-end', () => stopResize());
 }
+// Guarda varios archivos en una carpeta elegida por el usuario (un solo dialog).
+// Usado por el módulo de asistencia para evitar 30 dialogs de "Save As" al consolidar.
+function registerBatchSaveHandler() {
+    electron_1.ipcMain.handle('files:save-batch', async (_e, args) => {
+        if (!mainWindow) {
+            return { success: false, count: 0, errors: ['No hay ventana activa'] };
+        }
+        if (!args?.files?.length) {
+            return { success: false, count: 0, errors: ['No hay archivos para guardar'] };
+        }
+        const result = await electron_1.dialog.showOpenDialog(mainWindow, {
+            title: 'Selecciona la carpeta donde guardar los archivos',
+            buttonLabel: 'Guardar aquí',
+            properties: ['openDirectory', 'createDirectory'],
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+            return { success: false, count: 0, cancelled: true };
+        }
+        const folder = result.filePaths[0];
+        const errors = [];
+        let count = 0;
+        for (const file of args.files) {
+            try {
+                const filePath = path_1.default.join(folder, file.name);
+                await fs_1.promises.writeFile(filePath, Buffer.from(file.buffer));
+                count++;
+            }
+            catch (err) {
+                errors.push(`${file.name}: ${err.message}`);
+            }
+        }
+        return {
+            success: errors.length === 0,
+            count,
+            folderPath: folder,
+            errors: errors.length > 0 ? errors : undefined,
+        };
+    });
+}
 electron_1.app.whenReady().then(async () => {
     (0, download_manager_1.registerDownloadHandlers)();
     registerWindowHandlers();
+    registerBatchSaveHandler();
     // Calentar dependencias en segundo plano antes de mostrar UI
     warmMainDependencies();
     createWindow();

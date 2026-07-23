@@ -75,3 +75,20 @@ export interface LoginResult {
   success: boolean;
   message: string;
 }
+
+export interface FileToSave {
+  name: string;
+  buffer: ArrayBuffer;
+}
+
+export interface BatchSaveArgs {
+  files: FileToSave[];
+}
+
+export interface BatchSaveResult {
+  success: boolean;
+  count: number;
+  folderPath?: string;
+  cancelled?: boolean;
+  errors?: string[];
+}

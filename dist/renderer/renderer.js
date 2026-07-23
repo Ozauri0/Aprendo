@@ -37,6 +37,7 @@ exports.injectStylesFromFiles = injectStylesFromFiles;
 // renderer.ts - Lógica del frontend de la aplicación
 const calificaciones = __importStar(require("./calificaciones"));
 const informes = __importStar(require("./informes"));
+const asistencia = __importStar(require("./asistencia"));
 const config = __importStar(require("./config"));
 const descargas = __importStar(require("./descargas"));
 const icons_1 = require("./icons");
@@ -94,6 +95,11 @@ function mountCurrentRoute() {
         case 'informes':
             if (typeof informes.renderInformesPage === 'function') {
                 informes.renderInformesPage(injectStylesFromFiles, navigate);
+            }
+            break;
+        case 'asistencia':
+            if (typeof asistencia.renderAsistenciaPage === 'function') {
+                asistencia.renderAsistenciaPage(injectStylesFromFiles, navigate);
             }
             break;
         case 'config':
@@ -218,6 +224,10 @@ function openInformes() {
     showNotification('Abriendo consolidador de informes...', 'info');
     navigate('informes');
 }
+function openAsistencia() {
+    showNotification('Abriendo consolidador de asistencia...', 'info');
+    navigate('asistencia');
+}
 function openConfig() {
     showNotification('Abriendo configuración...', 'info');
     navigate('config');
@@ -328,22 +338,22 @@ function renderHomePage() {
                         </article>
 
                         <article class="feature-card">
+                            <div class="feature-icon">${(0, icons_1.getIcon)('clipboard-list', 48)}</div>
+                            <h3>Consolidar Asistencia</h3>
+                            <p>Agrupa los Excel de asistencia por curso en un archivo con una hoja por módulo</p>
+                            <button class="btn btn-primary" onclick="openAsistencia()" aria-label="Abrir módulo de consolidación de asistencia">
+                                <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
+                                Consolidar
+                            </button>
+                        </article>
+
+                        <article class="feature-card">
                             <div class="feature-icon">${(0, icons_1.getIcon)('download', 48)}</div>
                             <h3>Gestor de Descargas</h3>
                             <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
                             <button class="btn btn-primary" onclick="openDescargas()" aria-label="Abrir gestor de descargas">
                                 <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
                                 Descargar
-                            </button>
-                        </article>
-
-                        <article class="feature-card">
-                            <div class="feature-icon">${(0, icons_1.getIcon)('settings', 48)}</div>
-                            <h3>Configuración</h3>
-                            <p>Personaliza parámetros y preferencias del sistema</p>
-                            <button class="btn btn-secondary" onclick="openConfig()" aria-label="Abrir configuración del sistema">
-                                <span class="icon">${(0, icons_1.getIcon)('chevron-right', 18)}</span>
-                                Configurar
                             </button>
                         </article>
                     </section>
@@ -389,6 +399,7 @@ function toggleTheme() {
 // Exportar funciones para uso global
 window.openCalificaciones = openCalificaciones;
 window.openInformes = openInformes;
+window.openAsistencia = openAsistencia;
 window.openConfig = openConfig;
 window.openDescargas = openDescargas;
 window.toggleTheme = toggleTheme;

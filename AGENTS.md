@@ -24,6 +24,7 @@ src/
 │   ├── renderer.ts         # Entry point SPA + router
 │   ├── calificaciones.ts   # Procesamiento de calificaciones
 │   ├── informes.ts         # Consolidación de informes/logs
+│   ├── asistencia.ts       # Consolidación de asistencia (1 archivo por curso, hoja por módulo)
 │   ├── descargas.ts        # UI de descargas (usa IPC, NO Puppeteer directo)
 │   ├── config.ts           # Sistema de filtros y preferencias
 │   ├── icons.ts            # SVG icons inline (Lucide)
@@ -41,6 +42,12 @@ src/
 La configuración de `main.ts` usa:
 - `contextIsolation: true` (contextos aislados entre main y renderer)
 - `nodeIntegration: true` (TEMPORALMENTE activado para compatibilidad con código existente)
+
+### Rutas del sistema (sin idioma hardcodeado)
+Cualquier ruta que dependa del usuario o del sistema se resuelve con APIs nativas de Node/Electron — **nunca** con `os.homedir() + 'Downloads'` ni con strings tipo `C:\\Users\\...`:
+- Carpeta de descargas: `app.getPath('downloads')` (Electron resuelve correctamente a `Downloads`/`Descargas`/`Téléchargements`/`ダウンロード` según el idioma del SO).
+- Helper centralizado: `getDefaultDownloadPath()` en `src/main/download-manager.ts` retorna `<downloads>/Aprendo_Export` y crea la subcarpeta si no existe.
+- Paths internos de la app: `path.join(__dirname, ...)` (siempre relativos al archivo compilado, sin asumir layout del sistema).
 - `webSecurity: true` (CSP y Same-Origin habilitados)
 - `preload` script activo
 
@@ -77,12 +84,24 @@ El preload expone `window.aprendoAPI` con métodos seguros:
 - `window.aprendoAPI.startLogDownloads({ startId, endId, downloadPath })` -> descarga de logs de participación (Excel)
 - `window.aprendoAPI.startAttendanceDownloads({ startId, endId, downloadPath, attendanceFilter? })` -> descarga de asistencia (Excel)
 - `window.aprendoAPI.stopDownloads()` -> detiene cualquier descarga en curso
+- `window.aprendoAPI.saveFiles({ files: [{name, buffer}, ...] })` -> abre un `showOpenDialog` (openDirectory) y escribe los buffers en la carpeta elegida. Usado por el módulo de asistencia para evitar N dialogs de "Save As".
 - `window.aprendoAPI.onDownloadLog(callback)` / `onDownloadStatus(callback)`
 
 ### Flujo de Descargas
 1. **Notas**: Navega a `grade/export/xls/index.php?id={id}`, hace clic en `#id_submitbutton`, descarga Excel vía CDP.
 2. **Logs de participación**: Navega a `report/log/index.php?chooselog=1&showusers=0&showcourses=0&id={id}&group=&user=&date=&modid=&modaction=c&origin=&edulevel=2&logreader=logstore_standard` (parámetros: `modaction=c`=Crear, `edulevel=2`=Todos los recursos participando, resto vacío=Todos), busca botón "Descargar" y descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Logs.xlsx`.
 3. **Asistencia**: Para cada ID, visita `course/view.php?id={id}`, busca TODOS los enlaces `/mod/attendance/view.php`, extrae el `attendanceId` de cada uno, navega a `mod/attendance/export.php?id={attendanceId}`, hace clic en `#id_submitbutton` (OK), descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Asistencia {nombre_modulo}.xlsx`. El usuario puede filtrar módulos por palabra clave (campo "Filtrar Asistencia", separado por comas, guardado en `localStorage.aprendo_attendance_filter`).
+
+### Módulo Consolidar Asistencia (`asistencia.ts`)
+Consolida los Excel de asistencia (varios módulos por curso) en **un archivo por curso con una hoja por módulo**:
+1. Parsea nombres tipo `PAT_2026_01_Asistencias Asistencia {MODULO}.xlsx` → curso `PAT_2026_01` + módulo `{MODULO}` (también acepta `PAT_01 Asistencia {MODULO}`; sin patrón → grupo `Sin_Curso`). Ojo: usar `(?!\d)` y no `\b` en el regex del curso porque `_` es carácter de palabra.
+2. Agrupa por curso (ordenado por número), módulos ordenados alfabéticamente (`localeCompare 'es'`).
+3. Cada hoja preserva la estructura completa del export de Moodle: metadatos (Curso/Grupo filas 1-2), encabezados en fila 4 (negrita + relleno), datos desde fila 5. Nombre de hoja = nombre del módulo (sanitizado, máx. 31 chars, deduplicado).
+4. Genera `PAT_2026_XX_Asistencias.xlsx` por curso.
+
+**Patrón de descarga (sin saturar el PC):** como este módulo produce muchos archivos (uno por curso), NO usa `<a download>` con blob URLs (eso disparaba un "Save As" / Explorer por archivo). En su lugar, el botón "Guardar todos en una carpeta" invoca el IPC **`files:save-batch`** (`window.aprendoAPI.saveFiles`) que en el main process abre **un único** `dialog.showOpenDialog({properties:['openDirectory','createDirectory']})` y escribe todos los buffers directamente con `fs.promises.writeFile`. El usuario ve UN solo dialog y todos los archivos quedan en la carpeta elegida. Los botones individuales por curso usan el mismo IPC con un solo archivo (un dialog por click intencional).
+- IPC registrado en `src/main/main.ts` (`registerBatchSaveHandler`), tipos en `src/shared/types.ts` (`BatchSaveArgs` / `BatchSaveResult`), expuesto en `src/preload/preload.ts` (`saveFiles`).
+- Ruta SPA: `#asistencia`; estilos propios en `styles/asistencia.css` (resto reutiliza `styles.css`).
 
 ### Estado de Migración
 - [x] Preload con rutas correctas

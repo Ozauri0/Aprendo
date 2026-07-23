@@ -1,11 +1,23 @@
 // download-manager.ts - Lógica de descargas con Puppeteer en el proceso principal
 import { Browser, Page } from 'puppeteer';
-import { ipcMain, IpcMainInvokeEvent, WebContents } from 'electron';
+import { ipcMain, IpcMainInvokeEvent, WebContents, app } from 'electron';
 import path from 'path';
-import os from 'os';
 import fs from 'fs';
 
 const APRENDO_URL = 'https://aprendo.uct.cl/';
+const EXPORT_FOLDER = 'Aprendo_Export';
+
+// Resuelve la carpeta de descargas del sistema de forma independiente al idioma
+// (Windows en español: "...\Descargas", en inglés: "...\Downloads", etc.).
+// Retorna siempre ".../<Downloads-dir>/Aprendo_Export" y crea la subcarpeta si no existe.
+function getDefaultDownloadPath(): string {
+  const downloadDir = app.getPath('downloads');
+  const target = path.join(downloadDir, EXPORT_FOLDER);
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target, { recursive: true });
+  }
+  return target;
+}
 
 let globalBrowser: Browser | null = null;
 let globalPage: Page | null = null;
@@ -148,7 +160,7 @@ async function startDownloadLoop(startId: number, endId: number, webContents: We
     }
 
     const client = await page.target().createCDPSession();
-    const downloadPath = path.join(os.homedir(), 'Downloads', 'Aprendo_Export');
+    const downloadPath = getDefaultDownloadPath();
 
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
@@ -269,7 +281,7 @@ async function startLogDownloadLoop(startId: number, endId: number, webContents:
     }
 
     const client = await page.target().createCDPSession();
-    const downloadPath = path.join(os.homedir(), 'Downloads', 'Aprendo_Export');
+    const downloadPath = getDefaultDownloadPath();
 
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
@@ -443,7 +455,7 @@ async function startAttendanceDownloadLoop(startId: number, endId: number, webCo
     }
 
     const client = await page.target().createCDPSession();
-    const downloadPath = path.join(os.homedir(), 'Downloads', 'Aprendo_Export');
+    const downloadPath = getDefaultDownloadPath();
 
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',

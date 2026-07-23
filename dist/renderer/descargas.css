@@ -350,30 +350,17 @@
     color: var(--danger-color);
 }
 
-/* ================= LOGS DE DESCARGA ================= */
-.log-info {
-    color: var(--info-color);
-}
-
-.log-success {
-    color: var(--success-color);
-}
-
-.log-warning {
-    color: var(--warning-color);
-}
-
-.log-error {
-    color: var(--danger-color);
-}
-
 /* ================= RESPONSIVE ================= */
 @media (max-width: 1024px) {
     .descargas-layout {
         flex-direction: column;
+        /* En columna el sidebar ya no hereda altura de la fila;
+           limitamos su alto con un max-height en el panel del log. */
     }
     .descargas-sidebar {
         width: 100%;
+        height: auto;
+        min-height: 0;
     }
     .descargas-courses {
         max-height: none;
@@ -381,21 +368,29 @@
     .descargas-courses-grid {
         max-height: 50vh;
     }
+    .descargas-terminal-panel {
+        /* Cuando el sidebar se apila debajo, el log debe tener una
+           altura acotada propia para no expandir la página. */
+        max-height: 320px;
+    }
+    .activity-log {
+        max-height: 240px;
+    }
 }
 
 @media (max-width: 768px) {
     .control-panel {
         padding: var(--spacing-lg);
     }
-    
+
     .credentials-row {
         flex-direction: column;
     }
-    
+
     .progress-stats {
         grid-template-columns: 1fr;
     }
-    
+
     .btn-large {
         width: 100%;
         justify-content: center;
@@ -416,6 +411,20 @@
     .course-card-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+    .descargas-terminal-panel {
+        max-height: 280px;
+    }
+    .activity-log {
+        max-height: 200px;
+    }
+    .log-panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    .log-panel-actions {
+        align-self: flex-end;
     }
 }
 
@@ -452,6 +461,7 @@
     .activity-log {
         font-size: 0.75rem;
         padding: var(--spacing-sm);
+        max-height: 180px;
     }
     .descargas-courses-grid {
         grid-template-columns: 1fr;
@@ -468,6 +478,9 @@
     }
     .descargas-courses-header {
         padding: var(--spacing-md);
+    }
+    .descargas-terminal-panel {
+        max-height: 240px;
     }
 }
 
@@ -522,20 +535,218 @@
 }
 
 /* ================= ACTIVITY LOG ================= */
+/* El .activity-log hace scroll INTERNO gracias a la cadena flex:
+   body → .page-scroll (height acotada) → main → .descargas-layout →
+   .descargas-sidebar (height: 100%) → .descargas-terminal-panel
+   (flex: 1, overflow: hidden) → .activity-log (flex: 1, overflow-y: auto).
+   No necesita max-height explícito; sus padres ya lo acotan. */
 .activity-log {
-    max-height: none;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--bg-tertiary);
     border-radius: var(--radius-md);
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
     font-family: var(--font-mono);
     font-size: 0.8125rem;
     line-height: 1.7;
     scroll-behavior: smooth;
+    border: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .activity-log {
     background: var(--bg-secondary);
+    border-color: var(--border-color-light);
+}
+
+/* Indicador de scroll inferior (auto-scroll inteligente) */
+.activity-log[data-user-scrolled="true"] {
+    box-shadow: inset 0 -20px 20px -20px var(--info-color);
+}
+
+/* ================= LOG ENTRIES ================= */
+.log-entry {
+    padding: 2px 0 2px var(--spacing-sm);
+    border-left: 3px solid transparent;
+    margin-bottom: 2px;
+    word-break: break-word;
+    color: var(--text-secondary);
+    transition: background var(--transition-fast);
+}
+
+.log-entry:last-child {
+    margin-bottom: 0;
+}
+
+.log-entry .log-time {
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-right: var(--spacing-xs);
+    font-size: 0.75rem;
+}
+
+.log-info {
+    color: var(--text-secondary);
+    border-left-color: var(--text-muted);
+}
+
+.log-success {
+    color: var(--success-color);
+    border-left-color: var(--success-color);
+    font-weight: 500;
+}
+
+.log-warning {
+    color: var(--warning-color);
+    border-left-color: var(--warning-color);
+    background: var(--warning-bg);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding-left: calc(var(--spacing-sm) + 2px);
+}
+
+[data-theme="dark"] .log-warning {
+    /* El warning-bg del tema oscuro ya tiene transparencia; no se duplica */
+}
+
+.log-error {
+    color: var(--danger-color);
+    border-left-color: var(--danger-color);
+    background: var(--danger-bg);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding-left: calc(var(--spacing-sm) + 2px);
+    font-weight: 500;
+}
+
+/* ================= LOG HEADER (con contador y botones) ================= */
+.descargas-terminal-panel .panel-title {
+    margin-bottom: var(--spacing-sm);
+}
+
+.log-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.log-panel-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.log-panel-counter {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    padding: 2px var(--spacing-sm);
+    min-width: 24px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+[data-theme="dark"] .log-panel-counter {
+    background: var(--bg-tertiary);
+}
+
+.log-panel-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.log-panel-actions .btn-icon {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.log-panel-actions .btn-icon:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color-light);
+}
+
+.log-panel-actions .btn-icon:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.log-panel-actions .btn-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ================= STATUS BANNER PROMINENTE ================= */
+.status-banner {
+    display: none;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    margin-top: var(--spacing-sm);
+    animation: fadeIn var(--transition-base) ease-out;
+}
+
+.status-banner.visible {
+    display: flex;
+}
+
+.status-banner.status-processing {
+    background: var(--info-bg);
+    color: var(--info-color);
+    border-color: var(--info-border);
+}
+
+.status-banner.status-success {
+    background: var(--success-bg);
+    color: var(--success-color);
+    border-color: var(--success-border);
+}
+
+.status-banner.status-error {
+    background: var(--danger-bg);
+    color: var(--danger-color);
+    border-color: var(--danger-border);
+}
+
+.status-banner.status-warning {
+    background: var(--warning-bg);
+    color: var(--warning-color);
+    border-color: var(--warning-border);
+}
+
+.status-banner.status-idle {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border-color: var(--border-color);
+}
+
+.status-banner .status-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.status-banner .status-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.status-banner.status-processing .status-icon svg {
+    animation: spin 1s linear infinite;
 }
 
 /* ================= FULL-WIDTH OVERRIDE ================= */
@@ -543,6 +754,15 @@
     display: flex;
     gap: var(--spacing-xl);
     flex: 1;
+    /* Permite que la fila se encoja por debajo del alto de su contenido
+       para que el sidebar (flex item) pueda hacer scroll interno. */
+    min-height: 0;
+    /* Rompe el loop típico de flex row: la altura de la fila es la del
+       item más alto, y cada item con height: 100% heredaría esa altura.
+       Sin un height explícito, la fila crece con su contenido. Forzamos
+       la altura de la fila a la del main (acotado por min-height: 0 en
+       los padres). */
+    height: 100%;
 }
 
 /* Post-login: full width layout */
@@ -560,6 +780,9 @@
     border-radius: var(--radius-xl);
     overflow: hidden;
     min-width: 0;
+    /* Sin min-height: 0, .descargas-courses crecería al alto de su grid
+       de cursos, arrastrando al sidebar consigo. */
+    min-height: 0;
 }
 
 .descargas-courses-header {
@@ -667,6 +890,11 @@
     flex-direction: column;
     gap: var(--spacing-lg);
     flex-shrink: 0;
+    /* El sidebar debe tomar la altura completa de la fila del layout
+       (limitada por min-height: 0 en el padre). height: 100% hereda esa
+       altura; min-height: 0 evita que su contenido lo expanda. */
+    min-height: 0;
+    height: 100%;
 }
 
 .descargas-sidebar-panel {
@@ -682,6 +910,9 @@
     flex-direction: column;
     overflow: hidden;
     min-height: 200px;
+    /* Sin min-height: 0, este panel no puede hacer que su hijo (log) haga
+       scroll interno: el contenido lo expande sin límite. */
+    min-height: 0;
 }
 
 .descargas-terminal-panel .activity-log {
