@@ -535,12 +535,14 @@
 }
 
 /* ================= ACTIVITY LOG ================= */
-/* El .activity-log hace scroll INTERNO gracias a la cadena flex:
-   body → .page-scroll (height acotada) → main → .descargas-layout →
-   .descargas-sidebar (height: 100%) → .descargas-terminal-panel
-   (flex: 1, overflow: hidden) → .activity-log (flex: 1, overflow-y: auto).
-   No necesita max-height explícito; sus padres ya lo acotan. */
+/* El log debe mantener un tamaño FIJO y hacer scroll INTERNO, sin importar
+   cuántas entradas se agreguen. Sin max-height, crecía con cada log hasta
+   ocupar todo el viewport (porque su cadena de flex parents no estaba
+   acotada: .descargas-layout y .descargas-sidebar no tienen altura limitada). */
 .activity-log {
+    height: 350px;           /* tamaño fijo, no crece */
+    max-height: 350px;
+    flex: 0 0 350px;          /* no participa del flex-grow del panel */
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--bg-tertiary);
@@ -909,15 +911,14 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 200px;
-    /* Sin min-height: 0, este panel no puede hacer que su hijo (log) haga
-       scroll interno: el contenido lo expande sin límite. */
     min-height: 0;
+    flex-shrink: 0;           /* no crece con el log */
 }
 
 .descargas-terminal-panel .activity-log {
-    flex: 1;
-    min-height: 0;
+    /* El log ya tiene height/max-height/flex fijos definidos arriba. No
+       necesita flex: 1 aquí (eso haría que intentara crecer). */
+    flex: 0 0 350px;
 }
 
 .panel-title {

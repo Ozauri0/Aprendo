@@ -133,7 +133,7 @@ export function renderAsistenciaPage(
         </div>
 
         <footer>
-            <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
         </footer>
     </div>
     `;

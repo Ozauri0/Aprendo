@@ -2,6 +2,11 @@ import { app, BrowserWindow, Menu, screen, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { registerDownloadHandlers } from './download-manager';
+import { logger } from './logger';
+
+// Loguear info del sistema lo antes posible (útil para diagnóstico en PCs remotos)
+logger.logSystemInfo();
+logger.info('main', 'Proceso main inicializado');
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -189,6 +194,59 @@ function registerBatchSaveHandler() {
       };
     }
   );
+
+  // === Diagnóstico y logs ===
+  ipcMain.handle('diagnostics:get-info', async () => {
+    const os = require('os');
+    const logs = await logger.listLogFiles();
+    return {
+      app: {
+        name: app.getName(),
+        version: app.getVersion(),
+        locale: app.getLocale(),
+        isPackaged: app.isPackaged,
+        userData: app.getPath('userData'),
+        downloads: app.getPath('downloads'),
+      },
+      system: {
+        platform: process.platform,
+        arch: process.arch,
+        osVersion: os.version(),
+        osRelease: os.release(),
+        hostname: os.hostname(),
+        username: os.userInfo().username,
+      },
+      runtimes: {
+        node: process.versions.node,
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        v8: process.versions.v8,
+      },
+      log: {
+        dir: await logger.getLogDir(),
+        currentFile: await logger.getCurrentLogPath(),
+        files: logs,
+      },
+    };
+  });
+
+  ipcMain.handle('diagnostics:get-logs', async (_e, maxBytes?: number) => {
+    return await logger.readAllLogs(maxBytes ?? 200_000);
+  });
+
+  ipcMain.handle('diagnostics:open-log-dir', async () => {
+    const dir = await logger.getLogDir();
+    const { shell } = require('electron');
+    await shell.openPath(dir);
+    return { success: true, path: dir };
+  });
+
+  ipcMain.handle('diagnostics:copy-logs', async () => {
+    const text = await logger.readAllLogs(500_000);
+    const { clipboard } = require('electron');
+    clipboard.writeText(text);
+    return { success: true, bytes: text.length };
+  });
 }
 
 app.whenReady().then(async () => {

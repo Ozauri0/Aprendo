@@ -161,7 +161,11 @@ html.is-maximized body {
     box-shadow: none;
 }
 
-/* Wrapper de scroll: todo el contenido scrollea aquí, respetando la barra de título */
+/* Wrapper de scroll: todo el contenido scrollea aquí, respetando la barra de título.
+   No tiene padding-right: el footer debe poder llegar al borde derecho de la
+   ventana. El padding-right para evitar que el contenido toque el resize-handle
+   va en .container. El footer está al final del flujo (position: static),
+   no se mantiene "pegado" al viewport. */
 .page-scroll {
     flex: 1;
     min-height: 0;
@@ -169,6 +173,45 @@ html.is-maximized body {
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
+}
+
+/* ================= SCROLLBAR PERSONALIZADA =================
+   Más gruesa (16px) y visible para que sea fácil de agarrar con el mouse.
+   Estilo coherente con el tema (claro y oscuro). */
+::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 8px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+}
+::-webkit-scrollbar-thumb:active {
+    background: var(--text-secondary);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+/* Variante más contrastada en tema oscuro */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
 }
 
 /* Pequeño espaciado entre la barra de título y el header */
@@ -288,10 +331,13 @@ html.is-maximized body {
     user-select: none;
     -webkit-app-region: no-drag;
 }
-.resize-handle-n  { top: 0; left: 8px; right: 8px; height: 5px; cursor: n-resize; }
-.resize-handle-s  { bottom: 0; left: 8px; right: 8px; height: 5px; cursor: s-resize; }
-.resize-handle-e  { right: 0; top: 8px; bottom: 8px; width: 5px; cursor: e-resize; }
-.resize-handle-w  { left: 0; top: 8px; bottom: 8px; width: 5px; cursor: w-resize; }
+.resize-handle-n  { top: 0; left: 8px; right: 8px; height: 4px; cursor: n-resize; }
+.resize-handle-s  { bottom: 0; left: 8px; right: 8px; height: 4px; cursor: s-resize; }
+/* Los handles laterales son de 4px (más finos que la scrollbar de 16px), y
+   .page-scroll tiene padding-right: 18px para que la scrollbar no se
+   superponga con .resize-handle-e al intentar hacer scroll. */
+.resize-handle-e  { right: 0; top: 8px; bottom: 8px; width: 4px; cursor: e-resize; }
+.resize-handle-w  { left: 0; top: 8px; bottom: 8px; width: 4px; cursor: w-resize; }
 .resize-handle-ne { top: 0; right: 0; width: 8px; height: 8px; cursor: ne-resize; }
 .resize-handle-nw { top: 0; left: 0; width: 8px; height: 8px; cursor: nw-resize; }
 .resize-handle-se { bottom: 0; right: 0; width: 8px; height: 8px; cursor: se-resize; }
@@ -351,14 +397,15 @@ html.is-maximized body {
     width: 100%;
     margin: 0 auto;
     padding: var(--spacing-md) var(--spacing-lg);
-    flex: 1;
+    /* padding-right extra para que el contenido no toque el resize-handle-e
+       ni la scrollbar (que está a ~16px del borde). El footer está fuera
+       del container y se extiende al borde, pero su propio padding-right
+       compensa para que su texto respete la misma zona. */
+    padding-right: calc(var(--spacing-lg) + 18px);
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    /* Permite que la cadena de flex propague la altura acotada del body
-       a sus hijos (header + main) sin que el contenido más grande (p. ej.
-       una grilla de cursos o un log de actividad) haga crecer la página
-       y fuerce el scroll principal. */
-    min-height: 0;
+    /* Toma su altura natural. El scroll del .page-scroll maneja el overflow. */
 }
 
 /* ================= HEADER PRINCIPAL ================= */
@@ -1527,6 +1574,13 @@ footer {
     border-top: 1px solid var(--border-color);
     background: var(--bg-card);
     flex-shrink: 0;
+    /* El padding-right compensa el padding-right del .container, para que
+       el contenido del footer (texto, separador) respete la misma zona
+       de seguridad que el contenido principal. */
+    padding-right: calc(var(--spacing-xl) + 18px);
+    /* El footer está al final del flujo del documento (position: static).
+       Aparece después de hacer scroll al fondo de la página, no se queda
+       "pegado" al viewport. */
 }
 
 footer p {

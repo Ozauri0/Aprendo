@@ -359,7 +359,7 @@ function renderHomePage() {
                     <span>Universidad Católica de Temuco</span>
                 </div>
                 <div class="footer-divider"></div>
-                <p>Aprendo UCT v1.0.0 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')" aria-label="Sitio web de Christian Ferrer, abre en navegador externo">Christian Ferrer</a></p>
+                <p>Aprendo UCT v1.3.1 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')" aria-label="Sitio web de Christian Ferrer, abre en navegador externo">Christian Ferrer</a></p>
             </footer>
         </div>`;
     initializeApp();

@@ -284,6 +284,18 @@ export function renderConfigPage(
                                     </button>
                                 </div>
                             </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Diagnóstico y Soporte
+                                    </label>
+                                    <span class="setting-description">Información del sistema, archivos de log y herramientas para reportar problemas</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="showDiagnostics()">
+                                    ${getIcon('activity', 16)} Abrir Diagnóstico
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -291,7 +303,7 @@ export function renderConfigPage(
         </div>
 
         <footer>
-            <p>Aprendo UCT v1.0.0 &mdash; Universidad Católica de Temuco</p>
+            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
         </footer>
     </div>
     `;
@@ -312,7 +324,75 @@ export function renderConfigPage(
     (window as any).clearEliminatedHistory = clearEliminatedHistory;
     (window as any).toggleTheme = toggleTheme;
     (window as any).setTheme = setTheme;
+    (window as any).showDiagnostics = showDiagnostics;
+    (window as any).copyAllLogs = copyAllLogs;
+    (window as any).openLogFolder = openLogFolder;
     setupTitleBarActions();
+}
+
+// Vista de diagnóstico: muestra info del sistema, rutas, archivos de log,
+// y permite copiarlos o abrir la carpeta. Útil cuando hay problemas en PCs remotos.
+async function showDiagnostics() {
+    if (!window.aprendoAPI?.getDiagnostics) {
+        alert('API de diagnóstico no disponible. Reinstala la aplicación.');
+        return;
+    }
+    const info = await window.aprendoAPI.getDiagnostics();
+    const logs = await window.aprendoAPI.getLogs(200_000);
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const logFilesHtml = info.log.files.map(f =>
+        `<li><code>${f.name}</code> &mdash; ${(f.size / 1024).toFixed(1)} KB &mdash; ${f.modified.toLocaleString()}</li>`
+    ).join('') || '<li>(sin archivos de log)</li>';
+
+    modal.innerHTML = `
+        <div style="background:var(--bg-card);color:var(--text-primary);border-radius:12px;max-width:900px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="margin:0;">Diagnóstico del Sistema</h2>
+                <button class="btn btn-sm btn-secondary" onclick="this.closest('div').parentElement.parentElement.remove()">Cerrar</button>
+            </div>
+            <div style="padding:20px 24px;overflow-y:auto;flex:1;">
+                <h3 style="margin-top:0;">Aplicación</h3>
+                <pre style="background:var(--bg-tertiary);padding:12px;border-radius:8px;font-size:0.85em;overflow-x:auto;">${JSON.stringify(info.app, null, 2)}</pre>
+                <h3>Sistema</h3>
+                <pre style="background:var(--bg-tertiary);padding:12px;border-radius:8px;font-size:0.85em;overflow-x:auto;">${JSON.stringify(info.system, null, 2)}</pre>
+                <h3>Runtimes</h3>
+                <pre style="background:var(--bg-tertiary);padding:12px;border-radius:8px;font-size:0.85em;overflow-x:auto;">${JSON.stringify(info.runtimes, null, 2)}</pre>
+                <h3>Archivos de log</h3>
+                <p style="font-size:0.85em;color:var(--text-secondary);margin:0 0 8px 0;">Carpeta: <code>${info.log.dir}</code></p>
+                <ul style="font-size:0.85em;margin:0 0 12px 0;">${logFilesHtml}</ul>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                    <button class="btn btn-sm btn-primary" onclick="copyAllLogs()">Copiar logs al portapapeles</button>
+                    <button class="btn btn-sm btn-secondary" onclick="openLogFolder()">Abrir carpeta de logs</button>
+                </div>
+                <h3>Logs (últimos 200 KB)</h3>
+                <pre style="background:#0d1117;color:#c9d1d9;padding:12px;border-radius:8px;font-size:0.75em;overflow-x:auto;max-height:300px;overflow-y:auto;white-space:pre-wrap;">${logs.replace(/</g, '&lt;')}</pre>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function copyAllLogs() {
+    if (!window.aprendoAPI?.copyLogs) return;
+    const result = await window.aprendoAPI.copyLogs();
+    if (result.success) {
+        const btn = document.querySelector('button[onclick="copyAllLogs()"]') as HTMLButtonElement;
+        if (btn) {
+            const old = btn.textContent;
+            btn.textContent = '¡Copiado!';
+            btn.disabled = true;
+            setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+        }
+    }
+}
+
+async function openLogFolder() {
+    if (!window.aprendoAPI?.openLogDir) return;
+    await window.aprendoAPI.openLogDir();
 }
 
 // Función de toggle de tema

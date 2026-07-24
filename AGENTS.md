@@ -48,6 +48,23 @@ Cualquier ruta que dependa del usuario o del sistema se resuelve con APIs nativa
 - Carpeta de descargas: `app.getPath('downloads')` (Electron resuelve correctamente a `Downloads`/`Descargas`/`Téléchargements`/`ダウンロード` según el idioma del SO).
 - Helper centralizado: `getDefaultDownloadPath()` en `src/main/download-manager.ts` retorna `<downloads>/Aprendo_Export` y crea la subcarpeta si no existe.
 - Paths internos de la app: `path.join(__dirname, ...)` (siempre relativos al archivo compilado, sin asumir layout del sistema).
+
+### Fuentes web (offline, sin dependencia de internet)
+Las fuentes Inter están **embebidas como data URIs en base64 dentro de `global-styles.css`** (no se cargan de Google Fonts en runtime). Esto garantiza que la UI se vea idéntica en cualquier PC — con o sin internet, en cualquier idioma del SO, dentro o fuera de un `app.asar`. Tamaño del CSS: ~100 KB.
+- **Si se actualizan las fuentes**: regenerar el CSS con el script PowerShell que reemplaza las URLs por data URIs. La carpeta `src/renderer/assets/fonts/` contiene los `.woff2` originales (referencia).
+- **Por qué no usar archivos externos**: en una app empaquetada con `app.asar`, las URLs relativas tipo `url('../assets/fonts/x.woff2')` se resuelven contra la URL del **HTML**, no del CSS, lo que rompe la ruta y el navegador retorna 404. La solución data: URI es 100% autocontenida.
+
+### Empaquetado Windows (electron-builder)
+El `package.json` declara `asarUnpack` para que ciertos archivos se desempaqueten del `app.asar` y sean servibles por el protocolo `file://`:
+- `**/node_modules/puppeteer*/**` y `**/node_modules/@puppeteer/**` — los binarios nativos de Puppeteer no funcionan desde asar.
+- `**/dist/renderer/assets/fonts/**` — fallback por si se decide usar fuentes externas en el futuro (no necesario actualmente porque van embebidas en el CSS).
+**Build**: `npm run dist` → instalador en `release/Aprendo Setup 1.3.1.exe` y portable en `release/win-unpacked/`.
+
+### Diagnóstico de problemas en PC "limpio"
+Si el login no responde o la UI se ve rota en un PC sin muchas dependencias instaladas:
+1. **Visual C++ Redistributable x64** es requisito para que Chromium (Puppeteer) arranque. Si no está, el `await puppeteer.launch()` falla. La app ahora muestra el error en el log del renderer.
+2. **SmartScreen / Antivirus** pueden bloquear binarios sin firma digital. En el primer arranque, elegir "Más información → Ejecutar de todas formas".
+3. **Errores de Chromium** se loguean en el main process (visible con `console.log` desde devtools si `--remote-debugging-port=NNNN` está activo).
 - `webSecurity: true` (CSP y Same-Origin habilitados)
 - `preload` script activo
 

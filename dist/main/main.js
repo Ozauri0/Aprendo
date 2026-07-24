@@ -40,6 +40,10 @@ const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
 const fs_1 = require("fs");
 const download_manager_1 = require("./download-manager");
+const logger_1 = require("./logger");
+// Loguear info del sistema lo antes posible (útil para diagnóstico en PCs remotos)
+logger_1.logger.logSystemInfo();
+logger_1.logger.info('main', 'Proceso main inicializado');
 let mainWindow = null;
 // Precalienta dependencias pesadas para evitar congelamientos al primer uso
 async function warmMainDependencies() {
@@ -224,6 +228,55 @@ function registerBatchSaveHandler() {
             folderPath: folder,
             errors: errors.length > 0 ? errors : undefined,
         };
+    });
+    // === Diagnóstico y logs ===
+    electron_1.ipcMain.handle('diagnostics:get-info', async () => {
+        const os = require('os');
+        const logs = await logger_1.logger.listLogFiles();
+        return {
+            app: {
+                name: electron_1.app.getName(),
+                version: electron_1.app.getVersion(),
+                locale: electron_1.app.getLocale(),
+                isPackaged: electron_1.app.isPackaged,
+                userData: electron_1.app.getPath('userData'),
+                downloads: electron_1.app.getPath('downloads'),
+            },
+            system: {
+                platform: process.platform,
+                arch: process.arch,
+                osVersion: os.version(),
+                osRelease: os.release(),
+                hostname: os.hostname(),
+                username: os.userInfo().username,
+            },
+            runtimes: {
+                node: process.versions.node,
+                electron: process.versions.electron,
+                chrome: process.versions.chrome,
+                v8: process.versions.v8,
+            },
+            log: {
+                dir: await logger_1.logger.getLogDir(),
+                currentFile: await logger_1.logger.getCurrentLogPath(),
+                files: logs,
+            },
+        };
+    });
+    electron_1.ipcMain.handle('diagnostics:get-logs', async (_e, maxBytes) => {
+        return await logger_1.logger.readAllLogs(maxBytes ?? 200_000);
+    });
+    electron_1.ipcMain.handle('diagnostics:open-log-dir', async () => {
+        const dir = await logger_1.logger.getLogDir();
+        const { shell } = require('electron');
+        await shell.openPath(dir);
+        return { success: true, path: dir };
+    });
+    electron_1.ipcMain.handle('diagnostics:copy-logs', async () => {
+        const text = await logger_1.logger.readAllLogs(500_000);
+        const { clipboard } = require('electron');
+        clipboard.writeText(text);
+        return { success: true, bytes: text.length };
     });
 }
 electron_1.app.whenReady().then(async () => {

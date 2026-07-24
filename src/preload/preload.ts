@@ -30,6 +30,12 @@ const api = {
   saveFiles: (args: import('../shared/types').BatchSaveArgs) =>
     ipcRenderer.invoke('files:save-batch', args),
 
+  // Diagnóstico y logs (para soporte en PCs remotos)
+  getDiagnostics: () => ipcRenderer.invoke('diagnostics:get-info'),
+  getLogs: (maxBytes?: number) => ipcRenderer.invoke('diagnostics:get-logs', maxBytes),
+  openLogDir: () => ipcRenderer.invoke('diagnostics:open-log-dir'),
+  copyLogs: () => ipcRenderer.invoke('diagnostics:copy-logs'),
+
   // Progress callbacks
   onDownloadLog: (callback: (data: import('../shared/types').DownloadProgress) => void) => {
     const handler = (_event: IpcRendererEvent, data: import('../shared/types').DownloadProgress) => callback(data);
