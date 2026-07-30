@@ -1,7 +1,9 @@
-// @ts-nocheck
 // config.ts - Sistema de configuración avanzada para filtros de usuarios
-const { getIcon } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
+import { getIcon } from './icons';
+import { renderHeader, applyStoredTheme } from './components/header';
+import { toggleTheme, setTheme } from './shared-utils';
+import { renderFooter } from './components/footer';
+import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
 
 // Variables globales
 let emailFilters = [];
@@ -24,226 +26,285 @@ export function renderConfigPage(
     applyStoredTheme();
 
     document.body.innerHTML = `
-    <div class="container">
-        ${renderHeader({
-            title: 'Configuración del Sistema',
-            subtitle: 'Personaliza los filtros y preferencias de la aplicación',
-            showBackButton: true,
-            showConfigButton: false
-        })}
+    ${renderTitleBar('Configuración')}
+    <div class="page-scroll">
+        <div class="container">
+            ${renderHeader({
+                title: 'Configuración del Sistema',
+                subtitle: 'Personaliza los filtros y preferencias de la aplicación',
+                showBackButton: true,
+                showConfigButton: false
+            })}
 
-        <main>
-            <div class="section-card">
-                <div class="section-header">
-                    <h2>Configuración del Sistema</h2>
-                    <p class="section-description">
-                        Todos los cambios se guardan automáticamente. Personaliza los filtros y preferencias de la aplicación.
-                    </p>
-                </div>
-
-                <div class="auto-save-info">
-                    <div class="info-card-small">
-                        <span class="info-icon-small">${getIcon('save', 18)}</span>
-                        <span class="info-text">Guardado automático activado</span>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('mail', 20)} Filtros por Correo Electrónico</h3>
-                        <span class="section-hint">Excluye usuarios por su dirección de correo</span>
+            <main>
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>Configuración del Sistema</h2>
+                        <p class="section-description">
+                            Todos los cambios se guardan automáticamente. Personaliza los filtros y preferencias de la aplicación.
+                        </p>
                     </div>
 
-                    <div class="input-group">
-                        <label class="input-label">Agregar correo individual</label>
-                        <div class="input-row">
-                            <input type="email" id="emailInput" placeholder="ejemplo@dominio.com" class="input-field">
-                            <button class="btn btn-primary" onclick="addEmailFilter()">
-                                ${getIcon('plus', 16)} Agregar
-                            </button>
-                        </div>
-
-                        <div class="textarea-section">
-                            <label class="input-label" for="bulkEmailInput">
-                                Agregar múltiples correos
-                                <span class="label-hint">(uno por línea)</span>
-                            </label>
-                            <textarea id="bulkEmailInput" rows="4"
-                                placeholder="correo1@ejemplo.com&#10;correo2@ejemplo.com&#10;usuario@dominio.cl"></textarea>
-                            <button class="btn btn-secondary" onclick="addBulkEmails()">
-                                ${getIcon('plus', 16)} Agregar en Lote
-                            </button>
+                    <div class="auto-save-info">
+                        <div class="info-card-small">
+                            <span class="info-icon-small">${getIcon('save', 18)}</span>
+                            <span class="info-text">Guardado automático activado</span>
                         </div>
                     </div>
 
-                    <div class="filters-list">
-                        <div class="filters-list-header">
-                            <h4>Correos Filtrados</h4>
-                            <span class="count-badge" id="emailCount">0</span>
-                        </div>
-                        <div id="emailFilters" class="filters-container"></div>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('user', 20)} Filtros por RUT</h3>
-                        <span class="section-hint">Excluye usuarios por su número de RUT</span>
-                    </div>
-
-                    <div class="input-group">
-                        <label class="input-label">Agregar RUT individual</label>
-                        <div class="input-row">
-                            <input type="text" id="rutInput" placeholder="12.345.678-9 o 12345678-9"
-                                class="input-field">
-                            <button class="btn btn-primary" onclick="addRutFilter()">
-                                ${getIcon('plus', 16)} Agregar
-                            </button>
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${getIcon('mail', 20)} Filtros por Correo Electrónico</h3>
+                            <span class="section-hint">Excluye usuarios por su dirección de correo</span>
                         </div>
 
-                        <div class="textarea-section">
-                            <label class="input-label" for="bulkRutInput">
-                                Agregar múltiples RUTs
-                                <span class="label-hint">(uno por línea)</span>
-                            </label>
-                            <textarea id="bulkRutInput" rows="4"
-                                placeholder="12.345.678-9&#10;98.765.432-1&#10;11222333-4"></textarea>
-                            <button class="btn btn-secondary" onclick="addBulkRuts()">
-                                ${getIcon('plus', 16)} Agregar en Lote
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="filters-list">
-                        <div class="filters-list-header">
-                            <h4>RUTs Filtrados</h4>
-                            <span class="count-badge" id="rutCount">0</span>
-                        </div>
-                        <div id="rutFilters" class="filters-container"></div>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('clock', 20)} Historial de Usuarios Filtrados</h3>
-                        <span class="section-hint">Consulta el registro de usuarios excluidos</span>
-                    </div>
-                    <div class="report-controls">
-                        <button class="btn btn-info" onclick="showEliminatedReport()">
-                            ${getIcon('eye', 16)} Ver Reporte
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportEliminatedReport()">
-                            ${getIcon('download', 16)} Exportar
-                        </button>
-                        <button class="btn btn-warning" onclick="clearEliminatedHistory()">
-                            ${getIcon('trash', 16)} Limpiar Historial
-                        </button>
-                    </div>
-
-                    <div id="eliminatedReport" class="report-container" style="display: none;">
-                        <h4>Últimos Usuarios Excluidos</h4>
-                        <div id="eliminatedList" class="eliminated-list"></div>
-                    </div>
-                </div>
-
-                <div class="filter-section">
-                    <div class="filter-section-header">
-                        <h3>${getIcon('settings', 20)} Preferencias del Sistema</h3>
-                        <span class="section-hint">Ajusta el comportamiento general de la aplicación</span>
-                    </div>
-
-                    <div class="settings-grid">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label">
-                                    Guardado Automático de Archivos
-                                </label>
-                                <span class="setting-description">Guarda automáticamente los archivos procesados</span>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="autoSave" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label">
-                                    Logs Detallados
-                                </label>
-                                <span class="setting-description">Muestra información detallada en la consola</span>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="detailedLogs" checked>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="setting-item full-width">
-                            <div class="setting-info">
-                                <label class="setting-label" for="maxFiles">
-                                    Archivos Simultáneos
-                                </label>
-                                <span class="setting-description">Máximo de archivos a procesar al mismo tiempo</span>
-                            </div>
-                            <div class="number-input-group">
-                                <input type="number" id="maxFiles" value="10" min="1" max="50"
-                                    class="input-field number-input">
-                                <span class="number-unit">archivos</span>
-                            </div>
-                        </div>
-
-                        <div class="setting-item full-width">
-                            <div class="setting-info">
-                                <label class="setting-label" for="consolidationMode">
-                                    Modo de Consolidación de Informes
-                                </label>
-                                <span class="setting-description">Define cómo se organizará la información al consolidar múltiples archivos Excel</span>
-                            </div>
-                            <div class="radio-group">
-                                <label class="radio-option">
-                                    <input type="radio" name="consolidationMode" value="separate"
-                                        id="consolidationSeparate" checked>
-                                    <div class="radio-content">
-                                        <span class="radio-label">Hojas Separadas</span>
-                                        <span class="radio-description">Cada archivo se guardará en una hoja diferente del Excel consolidado</span>
-                                    </div>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="consolidationMode" value="single"
-                                        id="consolidationSingle">
-                                    <div class="radio-content">
-                                        <span class="radio-label">Hoja Única</span>
-                                        <span class="radio-description">Todos los datos se consolidarán en una sola hoja continua</span>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="setting-item full-width">
-                            <div class="setting-info">
-                                <label class="setting-label">
-                                    Tema de la Aplicación
-                                </label>
-                                <span class="setting-description">Selecciona el modo de visualización</span>
-                            </div>
-                            <div class="theme-buttons">
-                                <button class="btn btn-outline btn-sm" onclick="setTheme('light')">
-                                    ${getIcon('sun', 16)} Claro
+                        <div class="input-group">
+                            <label class="input-label">Agregar correo individual</label>
+                            <div class="input-row">
+                                <input type="email" id="emailInput" placeholder="ejemplo@dominio.com" class="input-field">
+                                <button class="btn btn-primary" onclick="addEmailFilter()">
+                                    ${getIcon('plus', 16)} Agregar
                                 </button>
-                                <button class="btn btn-outline btn-sm" onclick="setTheme('dark')">
-                                    ${getIcon('moon', 16)} Oscuro
+                            </div>
+
+                            <div class="textarea-section">
+                                <label class="input-label" for="bulkEmailInput">
+                                    Agregar múltiples correos
+                                    <span class="label-hint">(uno por línea)</span>
+                                </label>
+                                <textarea id="bulkEmailInput" rows="4"
+                                    placeholder="correo1@ejemplo.com&#10;correo2@ejemplo.com&#10;usuario@dominio.cl"></textarea>
+                                <button class="btn btn-secondary" onclick="addBulkEmails()">
+                                    ${getIcon('plus', 16)} Agregar en Lote
                                 </button>
                             </div>
                         </div>
+
+                        <div class="filters-list">
+                            <div class="filters-list-header">
+                                <h4>Correos Filtrados</h4>
+                                <span class="count-badge" id="emailCount">0</span>
+                            </div>
+                            <div id="emailFilters" class="filters-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${getIcon('user', 20)} Filtros por RUT</h3>
+                            <span class="section-hint">Excluye usuarios por su número de RUT</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Agregar RUT individual</label>
+                            <div class="input-row">
+                                <input type="text" id="rutInput" placeholder="12.345.678-9 o 12345678-9"
+                                    class="input-field">
+                                <button class="btn btn-primary" onclick="addRutFilter()">
+                                    ${getIcon('plus', 16)} Agregar
+                                </button>
+                            </div>
+
+                            <div class="textarea-section">
+                                <label class="input-label" for="bulkRutInput">
+                                    Agregar múltiples RUTs
+                                    <span class="label-hint">(uno por línea)</span>
+                                </label>
+                                <textarea id="bulkRutInput" rows="4"
+                                    placeholder="12.345.678-9&#10;98.765.432-1&#10;11222333-4"></textarea>
+                                <button class="btn btn-secondary" onclick="addBulkRuts()">
+                                    ${getIcon('plus', 16)} Agregar en Lote
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filters-list">
+                            <div class="filters-list-header">
+                                <h4>RUTs Filtrados</h4>
+                                <span class="count-badge" id="rutCount">0</span>
+                            </div>
+                            <div id="rutFilters" class="filters-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${getIcon('clock', 20)} Historial de Usuarios Filtrados</h3>
+                            <span class="section-hint">Consulta el registro de usuarios excluidos</span>
+                        </div>
+                        <div class="report-controls">
+                            <button class="btn btn-info" onclick="showEliminatedReport()">
+                                ${getIcon('eye', 16)} Ver Reporte
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportEliminatedReport()">
+                                ${getIcon('download', 16)} Exportar
+                            </button>
+                            <button class="btn btn-warning" onclick="clearEliminatedHistory()">
+                                ${getIcon('trash', 16)} Limpiar Historial
+                            </button>
+                        </div>
+
+                        <div id="eliminatedReport" class="report-container" style="display: none;">
+                            <h4>Últimos Usuarios Excluidos</h4>
+                            <div id="eliminatedList" class="eliminated-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${getIcon('calendar', 20)} Módulos de Asistencia a Descargar</h3>
+                            <span class="section-hint">Selecciona qué módulos de asistencia descargar automáticamente</span>
+                        </div>
+
+                        <div class="settings-grid" id="attendanceModulesGrid">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Gestión Personal</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="PERSONAL" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Escritura Académica</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="ACADÉMICA" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Pensamiento Matemático</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="MATEMÁTICO" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Habilidades Comunicativas</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" class="attendance-module-check" data-module="COMUNICATIVAS" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div class="filter-section-header">
+                            <h3>${getIcon('settings', 20)} Preferencias del Sistema</h3>
+                            <span class="section-hint">Ajusta el comportamiento general de la aplicación</span>
+                        </div>
+
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Guardado Automático de Archivos
+                                    </label>
+                                    <span class="setting-description">Guarda automáticamente los archivos procesados</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoSave" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Logs Detallados
+                                    </label>
+                                    <span class="setting-description">Muestra información detallada en la consola</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="detailedLogs" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label" for="maxFiles">
+                                        Archivos Simultáneos
+                                    </label>
+                                    <span class="setting-description">Máximo de archivos a procesar al mismo tiempo</span>
+                                </div>
+                                <div class="number-input-group">
+                                    <input type="number" id="maxFiles" value="10" min="1" max="50"
+                                        class="input-field number-input">
+                                    <span class="number-unit">archivos</span>
+                                </div>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label" for="consolidationMode">
+                                        Modo de Consolidación de Informes
+                                    </label>
+                                    <span class="setting-description">Define cómo se organizará la información al consolidar múltiples archivos Excel</span>
+                                </div>
+                                <div class="radio-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="consolidationMode" value="separate"
+                                            id="consolidationSeparate" checked>
+                                        <div class="radio-content">
+                                            <span class="radio-label">Hojas Separadas</span>
+                                            <span class="radio-description">Cada archivo se guardará en una hoja diferente del Excel consolidado</span>
+                                        </div>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="consolidationMode" value="single"
+                                            id="consolidationSingle">
+                                        <div class="radio-content">
+                                            <span class="radio-label">Hoja Única</span>
+                                            <span class="radio-description">Todos los datos se consolidarán en una sola hoja continua</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Tema de la Aplicación
+                                    </label>
+                                    <span class="setting-description">Selecciona el modo de visualización</span>
+                                </div>
+                                <div class="theme-buttons">
+                                    <button class="btn btn-outline btn-sm" onclick="setTheme('light')">
+                                        ${getIcon('sun', 16)} Claro
+                                    </button>
+                                    <button class="btn btn-outline btn-sm" onclick="setTheme('dark')">
+                                        ${getIcon('moon', 16)} Oscuro
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Diagnóstico y Soporte
+                                    </label>
+                                    <span class="setting-description">Información del sistema, archivos de log y herramientas para reportar problemas</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="showDiagnostics()">
+                                    ${getIcon('activity', 16)} Abrir Diagnóstico
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </div>
 
-        <footer>
-            <p>Aprendo UCT v1.0.0 - Universidad Católica de Temuco</p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 
@@ -263,20 +324,75 @@ export function renderConfigPage(
     (window as any).clearEliminatedHistory = clearEliminatedHistory;
     (window as any).toggleTheme = toggleTheme;
     (window as any).setTheme = setTheme;
+    (window as any).showDiagnostics = showDiagnostics;
+    (window as any).copyAllLogs = copyAllLogs;
+    (window as any).openLogFolder = openLogFolder;
+    setupTitleBarActions();
 }
 
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
+// Vista de diagnóstico: muestra info del sistema, rutas, archivos de log,
+// y permite copiarlos o abrir la carpeta. Útil cuando hay problemas en PCs remotos.
+async function showDiagnostics() {
+    if (!window.aprendoAPI?.getDiagnostics) {
+        alert('API de diagnóstico no disponible. Reinstala la aplicación.');
+        return;
+    }
+    const info = await window.aprendoAPI.getDiagnostics();
+    const logs = await window.aprendoAPI.getLogs(200_000);
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const logFilesHtml = info.log.files.map(f =>
+        `<li><code>${f.name}</code> &mdash; ${(f.size / 1024).toFixed(1)} KB &mdash; ${f.modified.toLocaleString()}</li>`
+    ).join('') || '<li>(sin archivos de log)</li>';
+
+    modal.innerHTML = `
+        <div style="background:var(--bg-card);color:var(--text-primary);border-radius:12px;max-width:900px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="margin:0;">Diagnóstico del Sistema</h2>
+                <button class="btn btn-sm btn-secondary" onclick="this.closest('div').parentElement.parentElement.remove()">Cerrar</button>
+            </div>
+            <div style="padding:20px 24px;overflow-y:auto;flex:1;">
+                <h3 style="margin-top:0;">Aplicación</h3>
+                <pre style="background:var(--bg-tertiary);padding:12px;border-radius:8px;font-size:0.85em;overflow-x:auto;">${JSON.stringify(info.app, null, 2)}</pre>
+                <h3>Sistema</h3>
+                <pre style="background:var(--bg-tertiary);padding:12px;border-radius:8px;font-size:0.85em;overflow-x:auto;">${JSON.stringify(info.system, null, 2)}</pre>
+                <h3>Runtimes</h3>
+                <pre style="background:var(--bg-tertiary);padding:12px;border-radius:8px;font-size:0.85em;overflow-x:auto;">${JSON.stringify(info.runtimes, null, 2)}</pre>
+                <h3>Archivos de log</h3>
+                <p style="font-size:0.85em;color:var(--text-secondary);margin:0 0 8px 0;">Carpeta: <code>${info.log.dir}</code></p>
+                <ul style="font-size:0.85em;margin:0 0 12px 0;">${logFilesHtml}</ul>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                    <button class="btn btn-sm btn-primary" onclick="copyAllLogs()">Copiar logs al portapapeles</button>
+                    <button class="btn btn-sm btn-secondary" onclick="openLogFolder()">Abrir carpeta de logs</button>
+                </div>
+                <h3>Logs (últimos 200 KB)</h3>
+                <pre style="background:#0d1117;color:#c9d1d9;padding:12px;border-radius:8px;font-size:0.75em;overflow-x:auto;max-height:300px;overflow-y:auto;white-space:pre-wrap;">${logs.replace(/</g, '&lt;')}</pre>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
 
-// Función para establecer tema específico
-function setTheme(theme: string) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('aprendo-theme', theme);
+async function copyAllLogs() {
+    if (!window.aprendoAPI?.copyLogs) return;
+    const result = await window.aprendoAPI.copyLogs();
+    if (result.success) {
+        const btn = document.querySelector('button[onclick="copyAllLogs()"]') as HTMLButtonElement;
+        if (btn) {
+            const old = btn.textContent;
+            btn.textContent = '¡Copiado!';
+            btn.disabled = true;
+            setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+        }
+    }
+}
+
+async function openLogFolder() {
+    if (!window.aprendoAPI?.openLogDir) return;
+    await window.aprendoAPI.openLogDir();
 }
 
 // ================= MODAL DE CONFIRMACIÓN PERSONALIZADO =================
@@ -515,13 +631,14 @@ function initializeConfigSystem() {
     console.log('=================================');
 
     loadConfiguration();
+    loadAttendanceModules();
     updateUI();
     setupEventListeners();
 
     // Vigilar que los inputs permanezcan habilitados
     setInterval(() => {
-        const emailInput = document.getElementById('emailInput');
-        const rutInput = document.getElementById('rutInput');
+        const emailInput = document.getElementById('emailInput') as HTMLInputElement | null;
+        const rutInput = document.getElementById('rutInput') as HTMLInputElement | null;
 
         if (emailInput && emailInput.disabled) {
             console.warn('Input de email estaba deshabilitado, rehabilitando...');
@@ -537,8 +654,8 @@ function initializeConfigSystem() {
 // Configurar event listeners
 function setupEventListeners() {
     // Asegurar que los inputs estén habilitados al iniciar
-    const emailInput = document.getElementById('emailInput');
-    const rutInput = document.getElementById('rutInput');
+    const emailInput = document.getElementById('emailInput') as HTMLInputElement | null;
+    const rutInput = document.getElementById('rutInput') as HTMLInputElement | null;
 
     if (emailInput) {
         emailInput.disabled = false;
@@ -560,7 +677,7 @@ function setupEventListeners() {
     });
 
     // Auto Save
-    const autoSaveCheckbox = document.getElementById('autoSave');
+    const autoSaveCheckbox = document.getElementById('autoSave') as HTMLInputElement | null;
     if (autoSaveCheckbox) {
         autoSaveCheckbox.addEventListener('change', function () {
             autoSave = this.checked;
@@ -570,7 +687,7 @@ function setupEventListeners() {
     }
 
     // Detailed Logs
-    const detailedLogsCheckbox = document.getElementById('detailedLogs');
+    const detailedLogsCheckbox = document.getElementById('detailedLogs') as HTMLInputElement | null;
     if (detailedLogsCheckbox) {
         detailedLogsCheckbox.addEventListener('change', function () {
             detailedLogs = this.checked;
@@ -580,7 +697,7 @@ function setupEventListeners() {
     }
 
     // Max Files
-    const maxFilesInput = document.getElementById('maxFiles');
+    const maxFilesInput = document.getElementById('maxFiles') as HTMLInputElement | null;
     if (maxFilesInput) {
         maxFilesInput.addEventListener('change', function () {
             maxFiles = parseInt(this.value);
@@ -588,6 +705,11 @@ function setupEventListeners() {
             console.log('Max Files cambiado a:', maxFiles);
         });
     }
+
+    // Attendance module checkboxes
+    document.querySelectorAll('.attendance-module-check').forEach(cb => {
+        cb.addEventListener('change', saveAttendanceModules);
+    });
 
     // Enter key para agregar filtros
     if (emailInput) {
@@ -609,10 +731,24 @@ function setupEventListeners() {
     }
 }
 
-// Función para cambiar tabs
-// Función para volver atrás
-function goBack() {
-    window.location.href = 'index.html';
+function saveAttendanceModules() {
+    const selected: string[] = [];
+    document.querySelectorAll('.attendance-module-check').forEach(cb => {
+        if ((cb as HTMLInputElement).checked) {
+            selected.push((cb as HTMLInputElement).dataset.module || '');
+        }
+    });
+    localStorage.setItem('aprendo_attendance_filter', selected.join(','));
+}
+
+function loadAttendanceModules() {
+    const saved = localStorage.getItem('aprendo_attendance_filter');
+    if (saved === null) return;
+    const selected = saved.split(',').map(s => s.trim());
+    document.querySelectorAll('.attendance-module-check').forEach(cb => {
+        const el = cb as HTMLInputElement;
+        el.checked = selected.includes(el.dataset.module || '');
+    });
 }
 
 // ================= FILTROS DE EMAIL =================
@@ -1436,7 +1572,7 @@ function getBatchEliminatedUsers() {
 // ================= FUNCIONES EXPORTADAS =================
 
 // Estas funciones serán llamadas desde calificaciones.js e informes.js
-window.configFilters = {
+(window as any).configFilters = {
     applyUserFilters: applyUserFilters,
     getActiveFilters: () => ({
         emailFilters: emailFilters.filter(f => f.enabled),

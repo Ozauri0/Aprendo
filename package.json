@@ -1,23 +1,29 @@
 {
   "name": "neo-aprendo",
-  "version": "1.0.1",
+  "version": "1.3.1",
   "description": "Reescritura de Aprendo en Electron + TypeScript",
   "main": "dist/main/main.js",
   "scripts": {
     "clean": "rimraf dist",
-    "build:assets": "copyfiles -u 3 \"src/renderer/pages/**/*.html\" dist/renderer && copyfiles -u 3 \"src/renderer/styles/**/*.css\" dist/renderer && copyfiles -u 2 \"src/renderer/assets/**/*\" dist/renderer",
+    "build:assets": "copyfiles -u 3 \"src/renderer/pages/index.html\" dist/renderer && copyfiles -u 3 \"src/renderer/styles/**/*.css\" dist/renderer && copyfiles -u 2 \"src/renderer/assets/**/*\" dist/renderer",
     "build": "npm run clean && npm run build:assets && tsc -p .",
-    "dev": "npm run build && electron .",
-    "start": "npm run dev"
+    "dev": "npm run build && electron . --no-sandbox",
+    "start": "npm run dev",
+    "dist": "npm run build && electron-builder --win",
+    "test": "jest --verbose"
   },
   "author": "Christian Ferrer",
   "license": "ISC",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.9.0",
     "copyfiles": "^2.4.1",
-    "electron": "^38.0.0",
-    "electron-builder": "^25.1.8",
+    "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.25.0",
+    "jest": "^30.4.2",
     "rimraf": "^6.0.1",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   },
@@ -31,11 +37,17 @@
     "appId": "com.aprendo.app",
     "productName": "Aprendo",
     "directories": {
-      "output": "dist"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/puppeteer*/**",
+      "**/node_modules/@puppeteer/**",
+      "**/dist/renderer/assets/fonts/**"
     ],
     "win": {
       "target": [
@@ -46,6 +58,35 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Education"
     }
   }
 }

@@ -1,14 +1,14 @@
-// @ts-nocheck
 // renderer.ts - Lógica del frontend de la aplicación
-const calificaciones = require('./calificaciones');
-const informes = require('./informes');
-const config = require('./config');
-const descargas = require('./descargas');
-const { icons, getIcon, iconSpan } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
-
-const fs = require('fs');
-const path = require('path');
+import * as calificaciones from './calificaciones';
+import * as informes from './informes';
+import * as asistencia from './asistencia';
+import * as config from './config';
+import * as descargas from './descargas';
+import { getIcon } from './icons';
+import { renderHeader, applyStoredTheme } from './components/header';
+import { toggleTheme } from './shared-utils';
+import { renderFooter } from './components/footer';
+import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
 
 // Esperar a que el DOM esté cargado
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,11 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mountCurrentRoute();
         const hideOverlay = showLoadingOverlay('Cargando dependencias...');
         // Precalentar dependencias pesadas en el renderer y cerrar overlay al terminar
-        Promise.all([
-            import('exceljs'),
-            import('puppeteer')
-        ]).then(() => {
-            console.log('[warmup] exceljs y puppeteer cargados en renderer');
+        import('exceljs').then(() => {
+            console.log('[warmup] exceljs cargado en renderer');
             hideOverlay();
         }).catch(err => {
             console.warn('[warmup] Error precalentando en renderer:', err);
@@ -66,6 +63,11 @@ function mountCurrentRoute() {
             informes.renderInformesPage(injectStylesFromFiles, navigate);
         }
         break;
+    case 'asistencia':
+        if (typeof asistencia.renderAsistenciaPage === 'function') {
+            asistencia.renderAsistenciaPage(injectStylesFromFiles, navigate);
+        }
+        break;
     case 'config':
         if (typeof config.renderConfigPage === 'function') {
             config.renderConfigPage(injectStylesFromFiles, navigate);
@@ -105,33 +107,46 @@ function showLoadingOverlay(message: string) {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: rgba(255, 255, 255, 0.9);
-                backdrop-filter: blur(2px);
+                background: var(--bg-primary, #f8fafc);
+                backdrop-filter: blur(4px);
                 z-index: 9999;
-                color: #111;
-                font-family: 'Inter', 'Segoe UI', sans-serif;
+                color: var(--text-primary, #1e293b);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 flex-direction: column;
-                gap: 12px;
+                gap: 16px;
+                transition: opacity 0.3s ease;
             }
             #app-loading-overlay .spinner {
-                width: 42px;
-                height: 42px;
-                border: 4px solid #e2e8f0;
-                border-top-color: #2563eb;
+                width: 44px;
+                height: 44px;
+                border: 3px solid var(--border-color, #e2e8f0);
+                border-top-color: var(--uct-primary, #003366);
                 border-radius: 50%;
-                animation: spin 1s linear infinite;
+                animation: spin 0.85s linear infinite;
             }
             #app-loading-overlay .message {
-                font-size: 15px;
+                font-size: 0.9375rem;
                 font-weight: 600;
+                color: var(--text-secondary, #475569);
+                letter-spacing: 0.01em;
+            }
+            #app-loading-overlay .brand {
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: var(--uct-primary, #003366);
+                letter-spacing: -0.01em;
             }
             @keyframes spin { to { transform: rotate(360deg); } }
         `;
 
         const overlay = document.createElement('div');
         overlay.id = 'app-loading-overlay';
+        overlay.setAttribute('role', 'alert');
+        overlay.setAttribute('aria-live', 'assertive');
+        overlay.setAttribute('aria-label', message || 'Cargando');
         overlay.innerHTML = `
-            <div class="spinner"></div>
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="brand">Aprendo UCT</div>
             <div class="message">${message || 'Cargando...'}</div>
         `;
 
@@ -187,6 +202,11 @@ function openInformes() {
     navigate('informes');
 }
 
+function openAsistencia() {
+    showNotification('Abriendo consolidador de asistencia...', 'info');
+    navigate('asistencia');
+}
+
 
 
 function openConfig() {
@@ -201,65 +221,45 @@ function openDescargas() {
 
 // Sistema de notificaciones
 function showNotification(message, type = 'info') {
-    // Crear elemento de notificación
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
+    // Asegurar que el contenedor de toasts existe
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
 
-    // Estilos de la notificación
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'info' ? '#4299e1' : type === 'success' ? '#48bb78' : '#f56565'};
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
-        animation: slideIn 0.3s ease-out;
-        max-width: 300px;
-        word-wrap: break-word;
+    const iconMap = {
+        info: '&#9432;',
+        success: '&#10003;',
+        warning: '&#9888;',
+        error: '&#10007;'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'polite');
+    toast.innerHTML = `
+        <span class="toast-icon" aria-hidden="true">${iconMap[type] || iconMap.info}</span>
+        <div class="toast-content">
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Cerrar notificación">&times;</button>
     `;
 
-    // Agregar animación CSS
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        @keyframes slideOut {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-        }
-    `;
-    document.head.appendChild(style);
+    container.appendChild(toast);
 
-    // Agregar al DOM
-    document.body.appendChild(notification);
-
-    // Auto-eliminar después de 3 segundos
+    // Auto-eliminar después de 3.5 segundos
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
+        toast.style.transition = 'all 0.3s ease-out';
+        toast.style.transform = 'translateX(110%)';
+        toast.style.opacity = '0';
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
         }, 300);
-    }, 3000);
+    }, 3500);
 }
 
 // Funciones de utilidad
@@ -280,9 +280,9 @@ function logMessage(message, level = 'info') {
 
 // Render del markup de la página principal directamente desde TS
 function renderHomePage() {
-        document.title = 'Aprendo UCT - Sistema de Gestión de Calificaciones';
+    document.title = 'Aprendo UCT — Sistema de Consolidación de Calificaciones';
 
-        // Asegurar enlaces a estilos si se renderiza en un HTML mínimo
+    // Asegurar enlaces a estilos si se renderiza en un HTML mínimo
     injectStylesFromFiles([
         'styles.css',
         'global-styles.css'
@@ -291,106 +291,92 @@ function renderHomePage() {
     // Aplicar tema guardado
     applyStoredTheme();
 
-        document.body.innerHTML = `
+    document.body.innerHTML = `
+    ${renderTitleBar('Aprendo UCT', 'Sistema de Consolidación de Calificaciones')}
+    <div class="page-scroll">
         <div class="container">
             ${renderHeader({
                 title: 'Aprendo UCT',
-                subtitle: 'Sistema de Gestión de Calificaciones',
+                subtitle: 'Sistema de Consolidación de Calificaciones',
                 isHomePage: true,
                 showConfigButton: true
             })}
 
-            <main>
-                <div class="welcome-section">
-                    <h2>¡Bienvenido!</h2>
-                    <p>Plataforma integral para la gestión de calificaciones y reportes académicos de la Universidad Católica de Temuco.</p>
-                </div>
+                <main id="main-content" role="main">
+                    <section class="welcome-section" aria-labelledby="welcome-heading">
+                        <h2 id="welcome-heading">¡Bienvenido!</h2>
+                        <p>Plataforma integral para la gestión de calificaciones y reportes académicos DGIA de la Universidad Católica de Temuco.</p>
+                    </section>
 
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('chart-bar', 48)}</div>
-                        <h3>Consolidar Calificaciones</h3>
-                        <p>Consolida y procesa archivos de calificaciones Excel de manera eficiente</p>
-                        <button class="btn btn-primary" onclick="openCalificaciones()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Abrir Módulo
-                        </button>
-                    </div>
+                    <section class="features-grid" aria-label="Módulos disponibles">
+                        <article class="feature-card">
+                            <div class="feature-icon">${getIcon('chart-bar', 48)}</div>
+                            <h3>Consolidar Calificaciones</h3>
+                            <p>Consolida y procesa archivos de calificaciones Excel de manera eficiente</p>
+                            <button class="btn btn-primary" onclick="openCalificaciones()" aria-label="Abrir módulo de calificaciones">
+                                <span class="icon">${getIcon('chevron-right', 18)}</span>
+                                Abrir Módulo
+                            </button>
+                        </article>
 
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('chart-line', 48)}</div>
-                        <h3>Consolidar Informes</h3>
-                        <p>Consolida archivos de logs e informes de actividad en un solo Excel</p>
-                        <button class="btn btn-primary" onclick="openInformes()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Consolidar
-                        </button>
-                    </div>
+                        <article class="feature-card">
+                            <div class="feature-icon">${getIcon('chart-line', 48)}</div>
+                            <h3>Consolidar Informes</h3>
+                            <p>Consolida archivos de logs e informes de actividad en un solo Excel</p>
+                            <button class="btn btn-primary" onclick="openInformes()" aria-label="Abrir módulo de consolidación de informes">
+                                <span class="icon">${getIcon('chevron-right', 18)}</span>
+                                Consolidar
+                            </button>
+                        </article>
 
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('download', 48)}</div>
-                        <h3>Gestor de Descargas</h3>
-                        <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
-                        <button class="btn btn-primary" onclick="openDescargas()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Descargar
-                        </button>
-                    </div>
+                        <article class="feature-card">
+                            <div class="feature-icon">${getIcon('clipboard-list', 48)}</div>
+                            <h3>Consolidar Asistencia</h3>
+                            <p>Agrupa los Excel de asistencia por curso en un archivo con una hoja por módulo</p>
+                            <button class="btn btn-primary" onclick="openAsistencia()" aria-label="Abrir módulo de consolidación de asistencia">
+                                <span class="icon">${getIcon('chevron-right', 18)}</span>
+                                Consolidar
+                            </button>
+                        </article>
 
-                    <div class="feature-card">
-                        <div class="feature-icon">${getIcon('settings', 48)}</div>
-                        <h3>Configuración</h3>
-                        <p>Personaliza parámetros y preferencias del sistema</p>
-                        <button class="btn btn-secondary" onclick="openConfig()">
-                            <span class="icon">${getIcon('chevron-right', 18)}</span>
-                            Configurar
-                        </button>
-                    </div>
-                </div>
+                        <article class="feature-card">
+                            <div class="feature-icon">${getIcon('download', 48)}</div>
+                            <h3>Gestor de Descargas</h3>
+                            <p>Descarga reportes y datos directamente desde Aprendo UCT</p>
+                            <button class="btn btn-primary" onclick="openDescargas()" aria-label="Abrir gestor de descargas">
+                                <span class="icon">${getIcon('chevron-right', 18)}</span>
+                                Descargar
+                            </button>
+                        </article>
+                    </section>
 
-            </main>
+                </main>
+            </div>
 
-            <footer>
-                <div class="footer-brand">
-                    <span>Universidad Católica de Temuco</span>
-                </div>
-                <p>Aprendo UCT v1.0.1 - Desarrollado por Christian Ferrer</p>
-            </footer>
+            ${renderFooter()}
         </div>`;
-        initializeApp();
+    initializeApp();
+    setupTitleBarActions();
 }
 
-// Inyecta CSS leyendo archivos locales (evita depender de <link> en HTML)
+// Inyecta CSS como <link> relativos (funciona en file:// sin dependencias de Node)
 export function injectStylesFromFiles(files: string[]) {
     const head = document.head;
     files.forEach((file) => {
-        try {
-            const cssPath = path.join(__dirname, file);
-            const cssContent = fs.readFileSync(cssPath, 'utf-8');
-            const styleEl = document.createElement('style');
-            styleEl.textContent = cssContent;
-            head.appendChild(styleEl);
-        } catch (err) {
-            console.warn(`[styles] No se pudo cargar ${file}:`, err);
-        }
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = file;
+        head.appendChild(link);
     });
 }
 
-// Funciones de tema claro/oscuro
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
-}
-
 // Exportar funciones para uso global
-window.openCalificaciones = openCalificaciones;
-window.openInformes = openInformes;
-window.openConfig = openConfig;
-window.openDescargas = openDescargas;
-window.toggleTheme = toggleTheme;
+(window as any).openCalificaciones = openCalificaciones;
+(window as any).openInformes = openInformes;
+(window as any).openAsistencia = openAsistencia;
+(window as any).openConfig = openConfig;
+(window as any).openDescargas = openDescargas;
+(window as any).toggleTheme = toggleTheme;
 
 // Mensaje de bienvenida en consola
 console.log(`

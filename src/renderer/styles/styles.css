@@ -137,6 +137,8 @@ html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: transparent;
+    height: 100%;
 }
 
 body {
@@ -144,9 +146,203 @@ body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     transition: background-color var(--transition-base), color var(--transition-base);
+    border-radius: 10px;
+    outline: 1px solid rgba(0,0,0,0.12);
 }
+
+html.is-maximized body {
+    border-radius: 0;
+    outline: none;
+    box-shadow: none;
+}
+
+/* Wrapper de scroll: todo el contenido scrollea aquí, respetando la barra de título.
+   No tiene padding-right: el footer debe poder llegar al borde derecho de la
+   ventana. El padding-right para evitar que el contenido toque el resize-handle
+   va en .container. El footer está al final del flujo (position: static),
+   no se mantiene "pegado" al viewport. */
+.page-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ================= SCROLLBAR PERSONALIZADA =================
+   Más gruesa (16px) y visible para que sea fácil de agarrar con el mouse.
+   Estilo coherente con el tema (claro y oscuro). */
+::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 8px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+}
+::-webkit-scrollbar-thumb:active {
+    background: var(--text-secondary);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+/* Variante más contrastada en tema oscuro */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.32);
+}
+
+/* Pequeño espaciado entre la barra de título y el header */
+.page-scroll > .container {
+    padding-top: 8px;
+}
+
+/* ================= BARRA DE TÍTULO CUSTOM ================= */
+.title-bar {
+    flex-shrink: 0;
+    height: 32px;
+    background: linear-gradient(135deg, var(--uct-primary), var(--uct-primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    z-index: 10000;
+    -webkit-app-region: drag;
+    user-select: none;
+    box-shadow: var(--shadow-md);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.title-bar-drag {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex: 1;
+    height: 100%;
+}
+
+.title-bar-icon {
+    width: 28px;
+    height: 28px;
+    background: rgba(255,255,255,0.15);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.title-bar-logo-img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    display: block;
+}
+
+.title-bar-logo {
+    color: var(--text-inverse);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.title-bar-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.title-bar-title {
+    color: var(--text-inverse);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.title-bar-subtitle {
+    color: rgba(255,255,255,0.65);
+    font-size: 0.7rem;
+    font-weight: 400;
+}
+
+.title-bar-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    -webkit-app-region: no-drag;
+    margin-right: -8px;
+}
+
+.title-bar-btn {
+    width: 42px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.title-bar-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+}
+
+.title-bar-btn.title-bar-close:hover {
+    background: #e81123;
+}
+
+.title-bar-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ================= RESIZE HANDLES PERSONALIZADOS ================= */
+.resize-handle {
+    position: fixed;
+    z-index: 20000;
+    background: transparent;
+    user-select: none;
+    -webkit-app-region: no-drag;
+}
+.resize-handle-n  { top: 0; left: 8px; right: 8px; height: 4px; cursor: n-resize; }
+.resize-handle-s  { bottom: 0; left: 8px; right: 8px; height: 4px; cursor: s-resize; }
+/* Los handles laterales son de 4px (más finos que la scrollbar de 16px), y
+   .page-scroll tiene padding-right: 18px para que la scrollbar no se
+   superponga con .resize-handle-e al intentar hacer scroll. */
+.resize-handle-e  { right: 0; top: 8px; bottom: 8px; width: 4px; cursor: e-resize; }
+.resize-handle-w  { left: 0; top: 8px; bottom: 8px; width: 4px; cursor: w-resize; }
+.resize-handle-ne { top: 0; right: 0; width: 8px; height: 8px; cursor: ne-resize; }
+.resize-handle-nw { top: 0; left: 0; width: 8px; height: 8px; cursor: nw-resize; }
+.resize-handle-se { bottom: 0; right: 0; width: 8px; height: 8px; cursor: se-resize; }
+.resize-handle-sw { bottom: 0; left: 0; width: 8px; height: 8px; cursor: sw-resize; }
+.is-maximized .resize-handle { display: none; }
 
 /* ================= ICONOS SVG INLINE ================= */
 .icon {
@@ -198,11 +394,28 @@ body {
 /* ================= CONTENEDOR PRINCIPAL ================= */
 .container {
     max-width: 1280px;
+    width: 100%;
     margin: 0 auto;
-    padding: var(--spacing-lg);
-    min-height: 100vh;
+    padding: var(--spacing-md) var(--spacing-lg);
+    /* padding-right extra para que el contenido no toque el resize-handle-e
+       ni la scrollbar (que está a ~16px del borde). El footer está fuera
+       del container y se extiende al borde, pero su propio padding-right
+       compensa para que su texto respete la misma zona. */
+    padding-right: calc(var(--spacing-lg) + 18px);
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
+    /* Crece para llenar el espacio disponible (.page-scroll maneja el overflow). */
+}
+
+/* ================= MAIN CONTENT ================= */
+/* main se expande para llenar el espacio disponible, empujando el footer
+   hacia abajo cuando el contenido es corto (ej. login de descargas). */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 /* ================= HEADER PRINCIPAL ================= */
@@ -210,8 +423,8 @@ header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-md) var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
 }
@@ -229,32 +442,15 @@ header {
     gap: var(--spacing-lg);
 }
 
-.header-logo {
-    width: 56px;
-    height: 56px;
-    background: var(--uct-primary);
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    box-shadow: var(--shadow-md);
-}
-
-.header-logo img {
-    width: 40px;
-    height: 40px;
+.header-logo-img {
+    width: 48px;
+    height: 48px;
     object-fit: contain;
-}
-
-.header-logo-placeholder {
-    color: var(--text-inverse);
-    font-size: 1.5rem;
-    font-weight: 700;
+    flex-shrink: 0;
 }
 
 .header-text h1 {
-    font-size: 1.75rem;
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: -0.02em;
@@ -262,7 +458,7 @@ header {
 }
 
 .header-text p {
-    font-size: 0.875rem;
+    font-size: clamp(0.75rem, 1.5vw, 0.875rem);
     color: var(--text-secondary);
     margin-top: var(--spacing-xs);
 }
@@ -278,8 +474,8 @@ header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-lg) var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-sm) var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
 }
@@ -574,48 +770,82 @@ header {
 
 /* ================= SECCIÓN DE BIENVENIDA ================= */
 .welcome-section {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    background: linear-gradient(135deg, var(--uct-primary) 0%, var(--uct-primary-light) 60%, var(--uct-accent) 100%);
+    border: none;
     border-radius: var(--radius-xl);
-    padding: var(--spacing-2xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-xl) var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
     text-align: center;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.welcome-section::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -5%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .welcome-section h2 {
-    font-size: 1.75rem;
+    font-size: clamp(1.375rem, 4vw, 1.875rem);
     font-weight: 700;
-    color: var(--text-primary);
+    color: #ffffff;
     margin-bottom: var(--spacing-sm);
     letter-spacing: -0.02em;
+    position: relative;
+    z-index: 1;
 }
 
 .welcome-section p {
-    font-size: 1rem;
-    color: var(--text-secondary);
+    font-size: clamp(0.875rem, 2vw, 1rem);
+    color: rgba(255, 255, 255, 0.85);
     max-width: 600px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    line-height: 1.7;
 }
 
 /* ================= GRID DE CARACTERÍSTICAS ================= */
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
 }
 
 .feature-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
+    padding: var(--spacing-lg);
     text-align: center;
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .feature-card::before {
@@ -624,16 +854,17 @@ header {
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 4px;
     background: linear-gradient(90deg, var(--uct-primary), var(--uct-accent));
     transform: scaleX(0);
+    transform-origin: left;
     transition: transform var(--transition-base);
 }
 
 .feature-card:hover {
     border-color: var(--uct-primary);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
 }
 
 .feature-card:hover::before {
@@ -641,9 +872,9 @@ header {
 }
 
 .feature-icon {
-    width: 80px;
-    height: 80px;
-    background: var(--bg-tertiary);
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, rgba(0, 51, 102, 0.08) 0%, rgba(0, 102, 204, 0.12) 100%);
     border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
@@ -651,30 +882,35 @@ header {
     margin: 0 auto var(--spacing-md);
     color: var(--uct-primary);
     transition: all var(--transition-base);
+    border: 1px solid rgba(0, 51, 102, 0.1);
 }
 
 .feature-icon svg {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
 }
 
 .feature-card:hover .feature-icon {
-    background: var(--uct-primary);
-    color: var(--text-inverse);
+    background: linear-gradient(135deg, var(--uct-primary), var(--uct-accent));
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(0, 51, 102, 0.25);
 }
 
 .feature-card h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
+    font-size: clamp(1rem, 2vw, 1.125rem);
+    font-weight: 700;
     color: var(--text-primary);
     margin-bottom: var(--spacing-sm);
+    letter-spacing: -0.01em;
 }
 
 .feature-card p {
-    font-size: 0.875rem;
+    font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
     color: var(--text-secondary);
     margin-bottom: var(--spacing-lg);
-    line-height: 1.6;
+    line-height: 1.65;
+    flex: 1;
 }
 
 /* ================= SECCIÓN DE ESTADO ================= */
@@ -737,8 +973,8 @@ header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
 }
 
@@ -751,18 +987,20 @@ header {
 
 .upload-area {
     border: 2px dashed var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-2xl);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl) var(--spacing-lg);
     text-align: center;
     transition: all var(--transition-base);
     cursor: pointer;
     background: var(--bg-tertiary);
+    position: relative;
 }
 
 .upload-area:hover,
 .upload-area.drag-over {
     border-color: var(--uct-accent);
     background: var(--info-bg);
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.08);
 }
 
 .upload-icon {
@@ -771,12 +1009,19 @@ header {
     align-items: center;
     justify-content: center;
     margin-bottom: var(--spacing-md);
-    color: var(--text-tertiary);
+    color: var(--uct-primary);
+    opacity: 0.6;
+    transition: all var(--transition-base);
+}
+
+.upload-area:hover .upload-icon {
+    opacity: 1;
+    transform: translateY(-3px);
 }
 
 .upload-icon svg {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
 }
 
 .upload-content h3 {
@@ -900,8 +1145,8 @@ header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
     text-align: center;
     box-shadow: var(--shadow-sm);
 }
@@ -942,8 +1187,8 @@ header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
 }
 
@@ -1009,8 +1254,8 @@ header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
 }
 
@@ -1333,15 +1578,37 @@ header {
 
 /* ================= FOOTER ================= */
 footer {
-    margin-top: auto;
-    padding: var(--spacing-lg) 0;
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-xl);
     text-align: center;
     border-top: 1px solid var(--border-color);
+    background: var(--bg-card);
+    flex-shrink: 0;
+    /* El padding-right compensa el padding-right del .container, para que
+       el contenido del footer (texto, separador) respete la misma zona
+       de seguridad que el contenido principal. */
+    padding-right: calc(var(--spacing-xl) + 18px);
+    /* El footer está al final del flujo del documento (position: static).
+       Aparece después de hacer scroll al fondo de la página, no se queda
+       "pegado" al viewport. */
 }
 
 footer p {
     font-size: 0.8125rem;
     color: var(--text-muted);
+    line-height: 1.6;
+}
+
+footer .footer-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+footer .footer-link:hover {
+    color: var(--text-secondary);
+    border-bottom-color: var(--text-muted);
 }
 
 footer .footer-brand {
@@ -1349,7 +1616,10 @@ footer .footer-brand {
     align-items: center;
     justify-content: center;
     gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 footer .footer-logo {
@@ -1358,9 +1628,22 @@ footer .footer-logo {
     opacity: 0.7;
 }
 
+footer .footer-divider {
+    width: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--uct-primary), var(--uct-accent));
+    border-radius: var(--radius-full);
+    margin: var(--spacing-xs) auto;
+    opacity: 0.5;
+}
+
 /* ================= CONTENIDO PRINCIPAL ================= */
 main {
     flex: 1;
+    /* min-height: 0 permite que <main> se encoja dentro del flex column
+       para que sus hijos (p. ej. sidebars con scroll interno) no crezcan
+       la página hasta disparar el scroll principal. */
+    min-height: 0;
 }
 
 /* ================= CARDS GENERALES ================= */
@@ -1592,20 +1875,22 @@ main {
     }
     
     header, .header-secondary {
-        padding: var(--spacing-lg);
+        padding: var(--spacing-md) var(--spacing-lg);
     }
     
     .header-content {
         flex-direction: column;
         text-align: center;
+        gap: var(--spacing-md);
     }
     
     .header-brand {
         flex-direction: column;
+        gap: var(--spacing-sm);
     }
     
     .header-text h1 {
-        font-size: 1.5rem;
+        font-size: 1.375rem;
     }
     
     .header-actions {
@@ -1615,6 +1900,7 @@ main {
     
     .features-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-md);
     }
     
     .status-info {
@@ -1650,15 +1936,46 @@ main {
     .result-stats {
         grid-template-columns: repeat(2, 1fr);
     }
+    
+    .welcome-section {
+        padding: var(--spacing-xl) var(--spacing-lg);
+    }
+    
+    .welcome-section h2 {
+        font-size: 1.5rem;
+    }
 }
 
 @media (max-width: 480px) {
+    .container {
+        padding: var(--spacing-sm);
+    }
+    
     .welcome-section {
-        padding: var(--spacing-lg);
+        padding: var(--spacing-lg) var(--spacing-md);
+        border-radius: var(--radius-lg);
+    }
+    
+    .welcome-section h2 {
+        font-size: 1.25rem;
+    }
+    
+    .welcome-section p {
+        font-size: 0.875rem;
     }
     
     .feature-card {
-        padding: var(--spacing-lg);
+        padding: var(--spacing-lg) var(--spacing-md);
+    }
+    
+    .feature-icon {
+        width: 56px;
+        height: 56px;
+    }
+    
+    .feature-icon svg {
+        width: 28px;
+        height: 28px;
     }
     
     .upload-area {
@@ -1667,10 +1984,24 @@ main {
     
     .btn {
         width: 100%;
+        justify-content: center;
     }
     
     .result-stats {
         grid-template-columns: 1fr;
+    }
+    
+    header {
+        border-radius: var(--radius-lg);
+    }
+    
+    .header-text h1 {
+        font-size: 1.125rem;
+    }
+    
+    .header-logo {
+        width: 44px;
+        height: 44px;
     }
 }
 
@@ -1704,7 +2035,7 @@ main {
 }
 
 [data-theme="dark"] .welcome-section {
-    background: var(--bg-card);
+    background: linear-gradient(135deg, #1a3a6e 0%, #1e4d8c 60%, #1a5fa8 100%);
 }
 
 [data-theme="dark"] .feature-card {
@@ -1712,12 +2043,14 @@ main {
 }
 
 [data-theme="dark"] .feature-icon {
-    background: var(--bg-tertiary);
+    background: linear-gradient(135deg, rgba(77, 159, 255, 0.12) 0%, rgba(92, 172, 255, 0.18) 100%);
     color: var(--uct-accent);
+    border-color: rgba(77, 159, 255, 0.2);
 }
 
 [data-theme="dark"] .feature-card:hover .feature-icon {
-    background: var(--uct-primary);
+    background: linear-gradient(135deg, var(--uct-primary), var(--uct-accent));
+    border-color: transparent;
 }
 
 [data-theme="dark"] .status-section {
@@ -1807,6 +2140,12 @@ main {
 [data-theme="dark"] .btn-config:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+}
+
+[data-theme="dark"] .download-area {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+    border: 1px solid var(--border-color);
+    color: var(--text-inverse);
 }
 
 [data-theme="dark"] footer {

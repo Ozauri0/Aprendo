@@ -1,378 +1,619 @@
-// @ts-nocheck
-// Port del gestor de descargas original (login + descargas masivas)
+// descargas.ts - Gestor de descargas (renderer) usando IPC seguro
+import { getIcon } from './icons';
+import { renderHeader, applyStoredTheme } from './components/header';
+import { renderFooter } from './components/footer';
+import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
 
-const puppeteer = require('puppeteer');
-const { getIcon } = require('./icons');
-const { renderHeader, applyStoredTheme } = require('./components/header');
-
-// Configuration
-const APRENDO_URL = 'https://aprendo.uct.cl/';
-
-// DOM Elements
-let statusDisplay;
-let activityLog;
-let loginBtn;
+// Unsubscribe functions for IPC listeners
+let unsubLog: (() => void) | null = null;
+let unsubStatus: (() => void) | null = null;
 
 export function renderDescargasPage(
     injectStyles: (files: string[]) => void,
     navigate: (view: string) => void
 ) {
-    injectStyles(['styles.css', 'global-styles.css', 'descargas.css']);
+    // Clean up previous listeners to avoid duplicates
+    if (unsubLog) { unsubLog(); unsubLog = null; }
+    if (unsubStatus) { unsubStatus(); unsubStatus = null; }
 
-    // Aplicar tema guardado
+    injectStyles(['styles.css', 'global-styles.css', 'descargas.css']);
     applyStoredTheme();
 
     document.body.innerHTML = `
-    <div class="container">
-        ${renderHeader({
-            title: 'Gestor de Descargas',
-            subtitle: 'Automatización de descargas desde Aprendo UCT',
-            showBackButton: true,
-            showConfigButton: true
-        })}
+    ${renderTitleBar('Gestor de Descargas')}
+    <div class="page-scroll">
+        <div class="container">
+            ${renderHeader({
+                title: 'Gestor de Descargas',
+                subtitle: 'Automatización de descargas desde Aprendo UCT',
+                showBackButton: true,
+                showConfigButton: true
+            })}
 
-        <main>
-            <div class="control-panel">
-                <div class="status-display" id="statusDisplay">
-                    <span class="status-icon">${getIcon('info', 20)}</span>
-                    <span class="status-text">Esperando inicio de sesión...</span>
+            <main id="main-content">
+                <div class="descargas-layout">
+                    <section class="descargas-courses" id="loginSection">
+                        <div class="descargas-courses-header">
+                            <h2>${getIcon('log-in', 20)} Iniciar Sesión</h2>
+                            <p class="section-description">Ingresa tus credenciales de Aprendo UCT para comenzar</p>
+                        </div>
+                        <div class="descargas-login-form">
+                            <div class="input-group" style="display: flex; flex-direction: column; gap: 15px; max-width: 350px; margin: 0 auto;">
+                                <div class="input-wrapper">
+                                    <label class="input-label" for="loginUsername">${getIcon('user', 16)} Usuario</label>
+                                    <input type="text" id="loginUsername" placeholder="Nombre de usuario" class="input-field">
+                                </div>
+                                <div class="input-wrapper">
+                                    <label class="input-label" for="loginPassword">${getIcon('lock', 16)} Contraseña</label>
+                                    <input type="password" id="loginPassword" placeholder="Contraseña" class="input-field">
+                                </div>
+                                <button class="btn btn-primary btn-large" onclick="startLoginProcess()" id="loginBtn" style="width: 100%;">
+                                    ${getIcon('log-in', 18)} Iniciar Sesión
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="descargas-courses" id="coursesSection" style="display: none;">
+                        <div class="descargas-courses-header">
+                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                <h2>${getIcon('book-open', 20)} Cursos Disponibles</h2>
+                                <div class="status-display status-idle" id="statusDisplay" role="status" aria-live="polite">
+                                    <span class="status-icon">${getIcon('info', 18)}</span>
+                                    <span class="status-text">Listo</span>
+                                </div>
+                            </div>
+                            <div class="descargas-search-row">
+                                <div class="input-wrapper" style="flex: 2;">
+                                    <input type="text" id="courseSearch" placeholder="Buscar por nombre o ID..." class="input-field" oninput="filterCourses()">
+                                </div>
+                                <div class="input-wrapper" style="flex: 1;">
+                                    <select id="yearFilter" class="input-field" onchange="filterCourses()">
+                                        <option value="">Todos los años</option>
+                                    </select>
+                                </div>
+                                <div class="input-wrapper" style="flex: 1;">
+                                    <select id="semesterFilter" class="input-field" onchange="filterCourses()">
+                                        <option value="">Todos los semestres</option>
+                                        <option value="1">1er Semestre</option>
+                                        <option value="2">2do Semestre</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="coursesGrid" class="descargas-courses-grid"></div>
+                    </section>
+
+                    <aside class="descargas-sidebar" id="downloadSidebar" style="display: none;">
+                        <div class="descargas-sidebar-panel">
+                            <div class="panel-title">
+                                <span class="icon">${getIcon('download', 18)}</span> Descarga Masiva por Rango
+                            </div>
+                            <div class="input-group" style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                <div class="input-wrapper">
+                                    <label class="input-label" for="startId">ID Inicial</label>
+                                    <input type="number" id="startId" placeholder="Ej: 469" class="input-field">
+                                </div>
+                                <div class="input-wrapper">
+                                    <label class="input-label" for="endId">ID Final</label>
+                                    <input type="number" id="endId" placeholder="Ej: 493" class="input-field">
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button class="btn btn-success btn-sm" onclick="startDownloadLoop()" id="downloadBtn" style="flex: 1;" title="Descargar Notas">
+                                    ${getIcon('chart-bar', 14)} Notas
+                                </button>
+                                <button class="btn btn-info btn-sm" onclick="startLogDownloadLoop()" id="logDownloadBtn" style="flex: 1;" title="Descargar Participación">
+                                    ${getIcon('clipboard-list', 14)} Logs
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="startAttendanceDownloadLoop()" id="attendanceDownloadBtn" style="flex: 1;" title="Descargar Asistencia">
+                                    ${getIcon('calendar', 14)} Asist.
+                                </button>
+                                <button class="btn btn-warning btn-sm" onclick="stopDownloadLoop()" id="stopBtn" style="display:none; width: 100%;">
+                                    ${getIcon('stop', 14)} Detener
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="descargas-sidebar-panel descargas-terminal-panel">
+                            <div class="log-panel-header">
+                                <h3 class="log-panel-title">
+                                    <span class="icon">${getIcon('list', 16)}</span>
+                                    Registro de Actividad
+                                    <span class="log-panel-counter" id="logCounter" title="Cantidad de entradas">0</span>
+                                </h3>
+                                <div class="log-panel-actions" role="toolbar" aria-label="Acciones del registro">
+                                    <button class="btn-icon" id="copyLogBtn" title="Copiar registro al portapapeles" aria-label="Copiar registro al portapapeles" disabled>
+                                        ${getIcon('copy', 14)}
+                                    </button>
+                                    <button class="btn-icon" id="clearLogBtn" title="Limpiar registro" aria-label="Limpiar registro" disabled>
+                                        ${getIcon('trash-2', 14)}
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="activityLog" class="activity-log" role="log" aria-live="polite" aria-label="Registro de actividad de descargas"></div>
+                        </div>
+                    </aside>
                 </div>
+            </main>
+        </div>
 
-                <div id="loginSection" class="login-section">
-                    <div class="input-group"
-                        style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; max-width: 300px; margin-left: auto; margin-right: auto;">
-                        <div class="input-wrapper">
-                            <label class="input-label" for="loginUsername">${getIcon('user', 16)} Usuario</label>
-                            <input type="text" id="loginUsername" placeholder="Nombre de usuario" class="input-field">
-                        </div>
-                        <div class="input-wrapper">
-                            <label class="input-label" for="loginPassword">${getIcon('lock', 16)} Contraseña</label>
-                            <input type="password" id="loginPassword" placeholder="Contraseña" class="input-field">
-                        </div>
-                    </div>
-                    <div class="action-buttons-center">
-                        <button class="btn btn-primary btn-large" onclick="startLoginProcess()" id="loginBtn">
-                            ${getIcon('log-in', 18)} Iniciar Sesión
-                        </button>
-                    </div>
-                </div>
-
-                <div id="downloadSection" class="range-section"
-                    style="display: none; margin-top: 20px; border-top: 1px solid var(--color-border); padding-top: 20px; width: 100%;">
-                    <h3>${getIcon('download', 20)} Descarga Masiva</h3>
-                    <div class="input-group"
-                        style="display: flex; gap: 15px; justify-content: center; margin-bottom: 15px;">
-                        <div class="input-wrapper">
-                            <label class="input-label" for="startId">ID Inicial</label>
-                            <input type="number" id="startId" placeholder="Ej: 469" class="input-field"
-                                style="width: 120px;">
-                        </div>
-                        <div class="input-wrapper">
-                            <label class="input-label" for="endId">ID Final</label>
-                            <input type="number" id="endId" placeholder="Ej: 493" class="input-field"
-                                style="width: 120px;">
-                        </div>
-                    </div>
-                    <div class="action-buttons-center">
-                        <button class="btn btn-success btn-large" onclick="startDownloadLoop()" id="downloadBtn">
-                            ${getIcon('play', 18)} Comenzar Descargas
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="log-container"
-                style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; max-width: 900px; margin-left: auto; margin-right: auto;">
-                <h3>${getIcon('list', 20)} Registro de Actividad</h3>
-                <div id="activityLog" class="activity-log"></div>
-            </div>
-        </main>
-
-        <footer>
-            <p>Aprendo UCT v1.0.0 - Universidad Católica de Temuco</p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 
-    statusDisplay = document.getElementById('statusDisplay');
-    activityLog = document.getElementById('activityLog');
-    loginBtn = document.getElementById('loginBtn');
+    const activityLog = document.getElementById('activityLog') as HTMLDivElement;
+    const statusDisplay = document.getElementById('statusDisplay') as HTMLDivElement;
+    const logCounter = document.getElementById('logCounter') as HTMLSpanElement;
+    const clearLogBtn = document.getElementById('clearLogBtn') as HTMLButtonElement;
+    const copyLogBtn = document.getElementById('copyLogBtn') as HTMLButtonElement;
+
     log('Módulo de descargas inicializado', 'info');
+
+    updateStatus('Esperando inicio de sesión...', 'idle');
+
+    // Subscribe to IPC events from main process
+    if (window.aprendoAPI) {
+        unsubLog = window.aprendoAPI.onDownloadLog((data) => {
+            log(data.message, data.type);
+        });
+        unsubStatus = window.aprendoAPI.onDownloadStatus((data) => {
+            updateStatus(data.text, data.type);
+        });
+    } else {
+        log('API de preload no disponible. Verifique la configuración de seguridad.', 'error');
+    }
+
+    let allCourses: { name: string; id: number; year: number; semester: number }[] = [];
+    let currentFilteredCourses: typeof allCourses = [];
+    let currentPage = 1;
+    const COURSES_PER_PAGE = 15;
 
     (window as any).navigate = navigate;
     (window as any).goBack = () => navigate('home');
     (window as any).startLoginProcess = startLoginProcess;
     (window as any).startDownloadLoop = startDownloadLoop;
+    (window as any).startLogDownloadLoop = startLogDownloadLoop;
+    (window as any).startAttendanceDownloadLoop = startAttendanceDownloadLoop;
+    (window as any).stopDownloadLoop = stopDownloadLoop;
     (window as any).toggleTheme = toggleTheme;
+    (window as any).courseDownload = courseDownload;
+    (window as any).filterCourses = filterCourses;
+    (window as any).goToPage = goToPage;
+    (window as any).nextPage = nextPage;
+    (window as any).prevPage = prevPage;
+    (window as any).clearActivityLog = clearLog;
+    setupTitleBarActions();
+
+    /**
+     * Auto-scroll inteligente: solo hace scroll al fondo si el usuario
+     * ya estaba cerca del fondo. Si el usuario scrolleó hacia arriba
+     * para leer historial, respetamos su posición. Marcamos visualmente
+     * el contenedor cuando el usuario se ha "despegado" del fondo.
+     */
+    function isScrolledToBottom(el: HTMLElement, threshold = 32): boolean {
+        return el.scrollHeight - el.clientHeight - el.scrollTop <= threshold;
+    }
+
+    function updateLogUI() {
+        const count = activityLog.children.length;
+        if (logCounter) logCounter.textContent = String(count);
+        const hasContent = count > 0;
+        if (clearLogBtn) clearLogBtn.disabled = !hasContent;
+        if (copyLogBtn) copyLogBtn.disabled = !hasContent;
+    }
+
+    function log(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
+        // Si el usuario está cerca del fondo, mantenemos el auto-scroll.
+        // Si scrolleó hacia arriba, NO lo movemos para respetar su lectura.
+        const shouldStickToBottom = isScrolledToBottom(activityLog);
+
+        const now = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.innerHTML = `<span class="log-time">[${now}]</span> ${message}`;
+        activityLog.appendChild(entry);
+
+        updateLogUI();
+
+        if (shouldStickToBottom) {
+            // Forzar el siguiente frame para que el scrollTop se aplique
+            // después de que el browser haya calculado el nuevo scrollHeight.
+            requestAnimationFrame(() => {
+                activityLog.scrollTop = activityLog.scrollHeight;
+                activityLog.removeAttribute('data-user-scrolled');
+            });
+        } else {
+            activityLog.setAttribute('data-user-scrolled', 'true');
+        }
+    }
+
+    function clearLog() {
+        // Solo permitir limpiar cuando no hay descarga activa
+        const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
+        if (stopBtn && stopBtn.style.display !== 'none') {
+            log('No se puede limpiar el registro mientras hay una descarga activa.', 'warning');
+            return;
+        }
+        activityLog.innerHTML = '';
+        updateLogUI();
+        log('Registro limpiado.', 'info');
+    }
+
+    async function copyLog() {
+        if (activityLog.children.length === 0) return;
+        const text = Array.from(activityLog.children)
+            .map((el) => (el as HTMLElement).innerText.trim())
+            .join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            // Feedback visual breve: deshabilitar botón y cambiar title
+            const originalTitle = copyLogBtn.title;
+            copyLogBtn.title = '¡Copiado!';
+            copyLogBtn.disabled = true;
+            setTimeout(() => {
+                copyLogBtn.title = originalTitle;
+                updateLogUI();
+            }, 1200);
+        } catch (e) {
+            // Fallback: select + execCommand para entornos sin clipboard API
+            try {
+                const range = document.createRange();
+                range.selectNodeContents(activityLog);
+                const sel = window.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+                document.execCommand('copy');
+                sel?.removeAllRanges();
+                log('Registro copiado al portapapeles.', 'success');
+            } catch {
+                log('No se pudo copiar el registro.', 'error');
+            }
+        }
+    }
+
+    // Wire up log panel buttons
+    if (clearLogBtn) clearLogBtn.addEventListener('click', clearLog);
+    if (copyLogBtn) copyLogBtn.addEventListener('click', copyLog);
+
+    // Detectar scroll manual del usuario para mostrar/ocultar el indicador
+    // "user-scrolled". Se usa para futuros refinamientos del auto-scroll.
+    activityLog.addEventListener('scroll', () => {
+        if (isScrolledToBottom(activityLog)) {
+            activityLog.removeAttribute('data-user-scrolled');
+        } else {
+            activityLog.setAttribute('data-user-scrolled', 'true');
+        }
+    });
+
+    updateLogUI();
+
+    function updateStatus(text: string, type: string) {
+        if (!statusDisplay) return;
+        const iconClass = type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : type === 'warning' ? 'alert-triangle' : type === 'processing' ? 'loader' : 'info';
+        statusDisplay.innerHTML = `
+            <span class="status-icon">${getIcon(iconClass as any, 18)}</span>
+            <span class="status-text">${text}</span>
+        `;
+        statusDisplay.className = `status-display status-${type}`;
+    }
+
+    async function startLoginProcess() {
+        const usernameInput = document.getElementById('loginUsername') as HTMLInputElement;
+        const passwordInput = document.getElementById('loginPassword') as HTMLInputElement;
+        const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
+        const username = usernameInput.value;
+        const password = passwordInput.value;
+
+        if (!username || !password) {
+            updateStatus('Por favor ingrese usuario y contraseña', 'warning');
+            return;
+        }
+
+        loginBtn.disabled = true;
+        updateStatus('Iniciando proceso de login...', 'processing');
+
+        try {
+            const result = await window.aprendoAPI.loginAprendo(username, password);
+            if (result.success) {
+                updateStatus('Sesión iniciada', 'success');
+                document.getElementById('loginSection')!.style.display = 'none';
+                document.getElementById('coursesSection')!.style.display = 'flex';
+                document.getElementById('downloadSidebar')!.style.display = 'flex';
+                document.querySelector('.page-scroll')?.classList.add('descargas-expanded');
+                await loadCourses();
+            } else {
+                log(`Error: ${result.message}`, 'error');
+                updateStatus('Error en el proceso', 'error');
+            }
+        } catch (error: any) {
+            log(`Error: ${error.message}`, 'error');
+            updateStatus('Error en el proceso', 'error');
+        } finally {
+            loginBtn.disabled = false;
+        }
+    }
+
+    async function loadCourses() {
+        try {
+            const result = await window.aprendoAPI.fetchCourses();
+            if (result.success && result.courses) {
+                allCourses = [...result.courses].sort((a, b) => a.id - b.id);
+                populateFilters();
+                currentFilteredCourses = allCourses;
+                currentPage = 1;
+                renderPagedCourses();
+            } else {
+                log('No se pudieron cargar los cursos.', 'warning');
+            }
+        } catch (e: any) {
+            log(`Error cargando cursos: ${e.message}`, 'error');
+        }
+    }
+
+    function renderCourses(courses: { name: string; id: number; year: number; semester: number }[]) {
+        const grid = document.getElementById('coursesGrid');
+        if (!grid) return;
+
+        grid.innerHTML = courses.map(c => `
+            <div class="course-card" data-course-id="${c.id}">
+                <div class="course-card-info">
+                    <span class="course-card-name" title="${c.name}">${c.name}</span>
+                    <span class="course-card-id">ID ${c.id}${c.semester ? ' \u2022 ' + c.semester + '\u00BA sem.' : ''}</span>
+                </div>
+                <div class="course-card-actions">
+                    <button class="btn btn-sm btn-success" onclick="courseDownload(${c.id}, 'grades')" title="Notas">
+                        ${getIcon('chart-bar', 14)}
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="courseDownload(${c.id}, 'logs')" title="Participación">
+                        ${getIcon('clipboard-list', 14)}
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="courseDownload(${c.id}, 'attendance')" title="Asistencia">
+                        ${getIcon('calendar', 14)}
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        if (courses.length === 0) {
+            grid.innerHTML = `<div class="empty-state"><p>No se encontraron cursos.</p></div>`;
+        }
+    }
+
+    function renderPagedCourses() {
+        const startIndex = (currentPage - 1) * COURSES_PER_PAGE;
+        const endIndex = startIndex + COURSES_PER_PAGE;
+        const pageCourses = currentFilteredCourses.slice(startIndex, endIndex);
+        renderCourses(pageCourses);
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const totalPages = Math.ceil(currentFilteredCourses.length / COURSES_PER_PAGE) || 1;
+        const startItem = currentFilteredCourses.length === 0 ? 0 : (currentPage - 1) * COURSES_PER_PAGE + 1;
+        const endItem = Math.min(currentPage * COURSES_PER_PAGE, currentFilteredCourses.length);
+
+        const grid = document.getElementById('coursesGrid');
+        if (!grid) return;
+
+        // Remove existing pagination
+        const existingPagination = document.getElementById('coursesPagination');
+        if (existingPagination) existingPagination.remove();
+
+        if (currentFilteredCourses.length === 0) return;
+
+        const paginationHTML = `
+            <div id="coursesPagination" class="pagination-bar">
+                <button class="btn btn-sm btn-primary pagination-btn" onclick="prevPage()" ${currentPage === 1 ? 'disabled' : ''}>
+                    ${getIcon('chevron-left', 14)} Anterior
+                </button>
+                <span class="pagination-info">
+                    Mostrando ${startItem}-${endItem} de ${currentFilteredCourses.length} cursos &bull; Página ${currentPage} de ${totalPages}
+                </span>
+                <button class="btn btn-sm btn-primary pagination-btn" onclick="nextPage()" ${currentPage === totalPages ? 'disabled' : ''}>
+                    Siguiente ${getIcon('chevron-right', 14)}
+                </button>
+            </div>
+        `;
+
+        grid.insertAdjacentHTML('afterend', paginationHTML);
+    }
+
+    function goToPage(page: number) {
+        const totalPages = Math.ceil(currentFilteredCourses.length / COURSES_PER_PAGE) || 1;
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderPagedCourses();
+    }
+
+    function nextPage() {
+        goToPage(currentPage + 1);
+    }
+
+    function prevPage() {
+        goToPage(currentPage - 1);
+    }
+
+    function populateFilters() {
+        const years = [...new Set(allCourses.map(c => c.year).filter(y => y > 0))].sort((a, b) => b - a);
+        const yearSelect = document.getElementById('yearFilter') as HTMLSelectElement;
+        if (yearSelect) {
+            yearSelect.innerHTML = '<option value="">Todos los años</option>' +
+                years.map(y => `<option value="${y}">${y}</option>`).join('');
+        }
+    }
+
+    function filterCourses() {
+        const search = (document.getElementById('courseSearch') as HTMLInputElement).value.toLowerCase();
+        const year = (document.getElementById('yearFilter') as HTMLSelectElement).value;
+        const semester = (document.getElementById('semesterFilter') as HTMLSelectElement).value;
+
+        let filtered = allCourses;
+        if (search) {
+            filtered = filtered.filter(c =>
+                c.name.toLowerCase().includes(search) || String(c.id).includes(search)
+            );
+        }
+        if (year) {
+            filtered = filtered.filter(c => c.year === parseInt(year));
+        }
+        if (semester) {
+            const semValue = parseInt(semester);
+            filtered = filtered.filter(c => c.semester === semValue || (semValue === 1 && c.semester === 0));
+        }
+
+        currentFilteredCourses = [...filtered].sort((a, b) => a.id - b.id);
+        currentPage = 1;
+        renderPagedCourses();
+    }
+
+    async function courseDownload(id: number, type: 'grades' | 'logs' | 'attendance') {
+        updateStatus(`Descargando ${type} del curso ${id}...`, 'processing');
+        log(`Iniciando descarga de ${type} para curso ${id}`, 'info');
+
+        try {
+            if (type === 'grades') {
+                await window.aprendoAPI.startDownloads({ startId: id, endId: id, downloadPath: '' });
+            } else if (type === 'logs') {
+                await window.aprendoAPI.startLogDownloads({ startId: id, endId: id, downloadPath: '' });
+            } else {
+                const filter = localStorage.getItem('aprendo_attendance_filter') || '';
+                await window.aprendoAPI.startAttendanceDownloads({ startId: id, endId: id, downloadPath: '', attendanceFilter: filter } as any);
+            }
+            updateStatus('Descarga completada', 'success');
+        } catch (e: any) {
+            log(`Error: ${e.message}`, 'error');
+            updateStatus('Error en descarga', 'error');
+        }
+    }
+
+    async function startDownloadLoop() {
+        const startId = parseInt((document.getElementById('startId') as HTMLInputElement).value);
+        const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
+        const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
+        const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const attendanceDownloadBtn = document.getElementById('attendanceDownloadBtn') as HTMLButtonElement;
+        const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
+
+        if (!startId || !endId || startId > endId) {
+            updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
+        attendanceDownloadBtn.disabled = true;
+        stopBtn.style.display = 'inline-flex';
+        updateStatus(`Iniciando descargas del ID ${startId} al ${endId}...`, 'processing');
+        log(`Iniciando ciclo de descargas: ${startId} -> ${endId}`, 'info');
+
+        try {
+            await window.aprendoAPI.startDownloads({
+                startId,
+                endId,
+                downloadPath: ''
+            });
+        } catch (error: any) {
+            log(`Error fatal: ${error.message}`, 'error');
+            updateStatus('Error fatal en descargas', 'error');
+        } finally {
+            downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
+            attendanceDownloadBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    async function startLogDownloadLoop() {
+        const startId = parseInt((document.getElementById('startId') as HTMLInputElement).value);
+        const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
+        const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
+        const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const attendanceDownloadBtn = document.getElementById('attendanceDownloadBtn') as HTMLButtonElement;
+        const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
+
+        if (!startId || !endId || startId > endId) {
+            updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
+        attendanceDownloadBtn.disabled = true;
+        stopBtn.style.display = 'inline-flex';
+        updateStatus(`Iniciando descarga de participación del ID ${startId} al ${endId}...`, 'processing');
+        log(`Iniciando ciclo de logs de participación: ${startId} -> ${endId}`, 'info');
+
+        try {
+            await window.aprendoAPI.startLogDownloads({
+                startId,
+                endId,
+                downloadPath: ''
+            });
+        } catch (error: any) {
+            log(`Error fatal: ${error.message}`, 'error');
+            updateStatus('Error fatal en descarga de logs', 'error');
+        } finally {
+            downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
+            attendanceDownloadBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    async function startAttendanceDownloadLoop() {
+        const startId = parseInt((document.getElementById('startId') as HTMLInputElement).value);
+        const endId = parseInt((document.getElementById('endId') as HTMLInputElement).value);
+        const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
+        const logDownloadBtn = document.getElementById('logDownloadBtn') as HTMLButtonElement;
+        const attendanceDownloadBtn = document.getElementById('attendanceDownloadBtn') as HTMLButtonElement;
+        const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
+        const filter = localStorage.getItem('aprendo_attendance_filter') || '';
+
+        if (!startId || !endId || startId > endId) {
+            updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        logDownloadBtn.disabled = true;
+        attendanceDownloadBtn.disabled = true;
+        stopBtn.style.display = 'inline-flex';
+        updateStatus(`Iniciando descarga de asistencia del ID ${startId} al ${endId}...`, 'processing');
+        log(`Iniciando ciclo de asistencia: ${startId} -> ${endId}${filter ? ' (filtro: ' + filter + ')' : ''}`, 'info');
+
+        try {
+            await window.aprendoAPI.startAttendanceDownloads({
+                startId,
+                endId,
+                downloadPath: '',
+                attendanceFilter: filter
+            } as any);
+        } catch (error: any) {
+            log(`Error fatal: ${error.message}`, 'error');
+            updateStatus('Error fatal en descarga de asistencia', 'error');
+        } finally {
+            downloadBtn.disabled = false;
+            logDownloadBtn.disabled = false;
+            attendanceDownloadBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    }
+
+    async function stopDownloadLoop() {
+        try {
+            await window.aprendoAPI.stopDownloads();
+            log('Solicitud de detención enviada.', 'warning');
+        } catch (error: any) {
+            log(`Error al detener: ${error.message}`, 'error');
+        }
+    }
 }
 
-// Función de toggle de tema
 function toggleTheme() {
     const html = document.documentElement;
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('aprendo-theme', newTheme);
-}
-
-function goBack() {
-    if (typeof (window as any).navigate === 'function') {
-        (window as any).navigate('home');
-    } else {
-        window.location.href = 'index.html';
-    }
-}
-
-// Global variables to hold browser instance
-let globalBrowser = null;
-let globalPage = null;
-let currentCredentials = { username: '', password: '' };
-
-async function launchAndLogin(username, password) {
-    log('Iniciando nueva sesión de navegador...', 'info');
-
-    if (!username || !password) {
-        throw new Error('Credenciales requeridas.');
-    }
-
-    const browser = await puppeteer.launch({
-        headless: true,
-        defaultViewport: null,
-        args: ['--start-maximized']
-    });
-
-    const page = await browser.newPage();
-
-    try {
-        log(`Navegando a ${APRENDO_URL}...`, 'info');
-        await page.goto(APRENDO_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-
-        // Check if login is needed
-        try {
-            await page.waitForSelector('#inputName', { timeout: 5000 });
-            log('Ingresando credenciales...', 'info');
-            await page.type('#inputName', username);
-            await page.type('#inputPassword', password);
-
-            log('Enviando formulario...', 'info');
-            await page.keyboard.press('Enter');
-
-            await page.waitForNavigation({ waitUntil: 'networkidle2' });
-        } catch (e) {
-            log('Verificando sesión existente...', 'info');
-        }
-
-        // Verify login success
-        const loginInputExists = await page.$('#inputName');
-
-        if (!loginInputExists) {
-            log('¡Sesión activa confirmada!', 'success');
-            return { browser, page };
-        } else {
-            throw new Error('Fallo en el inicio de sesión. Verifique credenciales.');
-        }
-
-    } catch (error) {
-        await browser.close();
-        throw error;
-    }
-}
-
-async function startLoginProcess() {
-    const usernameInput = document.getElementById('loginUsername');
-    const passwordInput = document.getElementById('loginPassword');
-    const username = usernameInput.value;
-    const password = passwordInput.value;
-
-    if (!username || !password) {
-        updateStatus('Por favor ingrese usuario y contraseña', 'warning');
-        return;
-    }
-
-    loginBtn.disabled = true;
-    updateStatus('Iniciando proceso de login...', 'processing');
-
-    try {
-        // Close existing browser if any
-        if (globalBrowser) {
-            try { await globalBrowser.close(); } catch (e) { }
-            globalBrowser = null;
-            globalPage = null;
-        }
-
-        // Store credentials temporarily for reconnection
-        currentCredentials = { username, password };
-
-        const session = await launchAndLogin(username, password);
-        globalBrowser = session.browser;
-        globalPage = session.page;
-
-        updateStatus('Sesión iniciada correctamente', 'success');
-
-        // Show download section and hide login section
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('downloadSection').style.display = 'block';
-
-    } catch (error) {
-        log(`Error: ${error.message}`, 'error');
-        updateStatus('Error en el proceso', 'error');
-        console.error(error);
-    } finally {
-        loginBtn.disabled = false;
-    }
-}
-
-async function startDownloadLoop() {
-    const startId = parseInt(document.getElementById('startId').value);
-    const endId = parseInt(document.getElementById('endId').value);
-    const downloadBtn = document.getElementById('downloadBtn');
-
-    if (!startId || !endId || startId > endId) {
-        updateStatus('Por favor ingrese un rango de IDs válido.', 'warning');
-        return;
-    }
-
-    downloadBtn.disabled = true;
-    updateStatus(`Iniciando descargas del ID ${startId} al ${endId}...`, 'processing');
-    log(`Iniciando ciclo de descargas: ${startId} -> ${endId}`, 'info');
-
-    try {
-        // Ensure we have a valid session
-        let page = globalPage;
-        let browser = globalBrowser;
-
-        // Check if browser is connected
-        let isConnected = false;
-        if (browser) {
-            try {
-                // Try to get pages to check connection
-                await browser.pages();
-                isConnected = true;
-            } catch (e) {
-                isConnected = false;
-            }
-        }
-
-        if (!browser || !isConnected) {
-            log('Sesión perdida o navegador cerrado. Reconectando...', 'warning');
-            try {
-                const session = await launchAndLogin(currentCredentials.username, currentCredentials.password);
-                globalBrowser = session.browser;
-                globalPage = session.page;
-                browser = globalBrowser;
-                page = globalPage;
-            } catch (e) {
-                throw new Error(`No se pudo reconectar: ${e.message}`);
-            }
-        }
-
-        // Configure download behavior
-        const client = await page.target().createCDPSession();
-        const path = require('path');
-        const os = require('os');
-        const downloadPath = path.join(os.homedir(), 'Downloads', 'Aprendo_Export');
-
-        await client.send('Page.setDownloadBehavior', {
-            behavior: 'allow',
-            downloadPath: downloadPath
-        });
-
-        log(`Carpeta de descarga configurada: ${downloadPath}`, 'info');
-
-        let successCount = 0;
-        let emptyCount = 0;
-
-        for (let id = startId; id <= endId; id++) {
-            updateStatus(`Procesando curso ID: ${id}`, 'processing');
-            log(`Navegando a curso ID: ${id}...`, 'info');
-
-            const exportUrl = `https://aprendo.uct.cl/grade/export/xls/index.php?id=${id}`;
-
-            try {
-                // Check connection before each navigation
-                try {
-                    await browser.pages();
-                } catch (e) {
-                    log('Conexión perdida durante el ciclo. Intentando reconectar...', 'warning');
-                    const session = await launchAndLogin(currentCredentials.username, currentCredentials.password);
-                    globalBrowser = session.browser;
-                    globalPage = session.page;
-                    browser = globalBrowser;
-                    page = globalPage;
-
-                    // Re-configure download path for new session
-                    const newClient = await page.target().createCDPSession();
-                    await newClient.send('Page.setDownloadBehavior', {
-                        behavior: 'allow',
-                        downloadPath: downloadPath
-                    });
-                }
-
-                await page.goto(exportUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-
-                const submitBtn = await page.$('#id_submitbutton');
-
-                if (submitBtn) {
-                    log(`Botón de descarga encontrado para ID ${id}. Descargando...`, 'info');
-
-                    await Promise.all([
-                        page.click('#id_submitbutton'),
-                        new Promise(r => setTimeout(r, 2000))
-                    ]);
-
-                    log(`Descarga iniciada para ID ${id}`, 'success');
-                    successCount++;
-                } else {
-                    const currentUrl = page.url();
-                    const currentTitle = await page.title();
-                    log(`No se encontró botón. ID: ${id}`, 'warning');
-                    log(`   URL: ${currentUrl}`, 'warning');
-                    log(`   Título: ${currentTitle}`, 'warning');
-
-                    if (await page.$('#inputName') || currentTitle.includes('Log in') || currentTitle.includes('Entrar')) {
-                        log('   Detectado formulario de login. Sesión perdida.', 'error');
-                        // Force reconnection on next iteration
-                        try { await browser.close(); } catch (e) { }
-                        globalBrowser = null;
-                    }
-
-                    emptyCount++;
-                }
-
-            } catch (err) {
-                log(`Error procesando ID ${id}: ${err.message}`, 'error');
-            }
-
-            await new Promise(r => setTimeout(r, 1000));
-        }
-
-        updateStatus(`Proceso finalizado. Descargas: ${successCount}, Vacíos/Error: ${emptyCount}`, 'success');
-        log('Ciclo de descargas completado.', 'success');
-
-    } catch (error) {
-        log(`Error fatal en el ciclo de descargas: ${error.message}`, 'error');
-        updateStatus('Error fatal en descargas', 'error');
-    } finally {
-        downloadBtn.disabled = false;
-    }
-}
-
-function updateStatus(text, type) {
-    const iconClass = type === 'success' ? 'icon-check-circle' : type === 'error' ? 'icon-x-circle' : type === 'warning' ? 'icon-warning' : 'icon-loader';
-    statusDisplay.innerHTML = `
-        <span class="status-icon"><span class="icon ${iconClass}"></span></span>
-        <span class="status-text">${text}</span>
-    `;
-
-    statusDisplay.className = `status-display status-${type}`;
-}
-
-function log(message, type = 'info') {
-    const now = new Date().toLocaleTimeString();
-    const entry = document.createElement('div');
-    entry.className = `log-entry log-${type}`;
-    entry.innerHTML = `<span class="log-time">[${now}]</span> ${message}`;
-    activityLog.appendChild(entry);
-    // Scroll automático al último elemento
-    entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }

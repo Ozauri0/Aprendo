@@ -59,9 +59,19 @@
 .results-section h2,
 .results-section h3,
 .results-section h4,
-.results-section p,
-.results-section span {
+.results-section > p,
+.results-section .results-summary p,
+.results-section .processed-files-section p,
+.results-section .processed-files-section h3 {
     color: var(--text-primary);
+}
+
+/* El área de descarga dentro de results debe tener texto blanco */
+.results-section .download-area,
+.results-section .download-area *,
+.results-section .download-area .download-title,
+.results-section .download-area .download-subtitle {
+    color: var(--text-inverse);
 }
 
 .results-summary {
@@ -212,6 +222,39 @@
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-sm);
+    }
+}
+
+@media (max-width: 480px) {
+    .upload-area {
+        padding: var(--spacing-md);
+    }
+    .upload-icon svg {
+        width: 40px;
+        height: 40px;
+    }
+    .upload-content h3 {
+        font-size: 0.9375rem;
+    }
+    .results-section {
+        padding: var(--spacing-md);
+    }
+    .result-stat .stat-number {
+        font-size: 1.5rem;
+    }
+    .download-area {
+        padding: var(--spacing-lg) var(--spacing-md);
+    }
+    .processed-files-section {
+        padding: var(--spacing-md);
+    }
+    .processed-file-name {
+        font-size: 0.8125rem;
+    }
+    .log-container {
+        max-height: 200px;
+        padding: var(--spacing-sm);
+        font-size: 0.75rem;
     }
 }
 
