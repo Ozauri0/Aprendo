@@ -8,7 +8,9 @@ exports.renderCalificacionesPage = renderCalificacionesPage;
 require("./config");
 const icons_1 = require("./icons");
 const header_1 = require("./components/header");
+const footer_1 = require("./components/footer");
 const title_bar_1 = require("./components/title-bar");
+const shared_utils_1 = require("./shared-utils");
 const exceljs_1 = __importDefault(require("exceljs"));
 // Variables globales
 let selectedFiles = [];
@@ -113,40 +115,30 @@ function renderCalificacionesPage(injectStyles, navigate) {
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${(0, footer_1.renderFooter)()}
     </div>
     `;
     // Inicialización equivalente al DOMContentLoaded previo
-    logMessage('Sistema iniciado. Listo para procesar archivos.', 'info');
+    (0, shared_utils_1.logMessage)('Sistema iniciado. Listo para procesar archivos.', 'info');
     setupEventListeners();
     try {
-        logMessage('Sistema de procesamiento de calificaciones iniciado', 'info');
-        logMessage('ExcelJS cargado - Procesamiento real activado', 'success');
+        (0, shared_utils_1.logMessage)('Sistema de procesamiento de calificaciones iniciado', 'info');
+        (0, shared_utils_1.logMessage)('ExcelJS cargado - Procesamiento real activado', 'success');
     }
     catch (error) {
         console.error('Error cargando ExcelJS:', error);
-        logMessage('Error: No se pudo cargar ExcelJS', 'error');
+        (0, shared_utils_1.logMessage)('Error: No se pudo cargar ExcelJS', 'error');
     }
     console.log('Sistema inicializado correctamente');
     // Exponer funciones usadas en el markup
     window.processFiles = processFiles;
     window.clearFiles = clearFiles;
     window.removeFile = removeFile;
-    window.clearLog = clearLog;
+    window.clearLog = shared_utils_1.clearLog;
     window.goBack = () => navigate('home');
     window.navigate = navigate;
-    window.toggleTheme = toggleTheme;
+    window.toggleTheme = shared_utils_1.toggleTheme;
     (0, title_bar_1.setupTitleBarActions)();
-}
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
 }
 // Configurar event listeners
 function setupEventListeners() {
@@ -168,7 +160,7 @@ function setupEventListeners() {
     uploadArea.addEventListener('dragleave', handleDragLeave);
     uploadArea.addEventListener('drop', handleFileDrop);
     console.log('Event listeners configurados');
-    logMessage('Event listeners configurados correctamente', 'info');
+    (0, shared_utils_1.logMessage)('Event listeners configurados correctamente', 'info');
 }
 // Manejar selección de archivos
 function handleFileSelection(event) {
@@ -198,7 +190,7 @@ function handleFileDrop(event) {
     const excelFiles = files.filter((file) => file.name.toLowerCase().endsWith('.xlsx') ||
         file.name.toLowerCase().endsWith('.xls'));
     if (excelFiles.length !== files.length) {
-        logMessage(`Se ignoraron ${files.length - excelFiles.length} archivos que no son Excel`, 'warning');
+        (0, shared_utils_1.logMessage)(`Se ignoraron ${files.length - excelFiles.length} archivos que no son Excel`, 'warning');
     }
     addFilesToList(excelFiles);
 }
@@ -206,17 +198,17 @@ function handleFileDrop(event) {
 function addFilesToList(files) {
     console.log('Agregando archivos:', files.length);
     if (selectedFiles.length + files.length > 60) {
-        logMessage('No se pueden agregar más de 60 archivos', 'error');
+        (0, shared_utils_1.logMessage)('No se pueden agregar más de 60 archivos', 'error');
         return;
     }
     files.forEach((file) => {
         if (!selectedFiles.some(f => f.name === file.name)) {
             selectedFiles.push(file);
             console.log('Archivo agregado:', file.name);
-            logMessage(`Archivo agregado: ${file.name} (${formatFileSize(file.size)})`, 'info');
+            (0, shared_utils_1.logMessage)(`Archivo agregado: ${file.name} (${(0, shared_utils_1.formatFileSize)(file.size)})`, 'info');
         }
         else {
-            logMessage(`Archivo duplicado ignorado: ${file.name}`, 'warning');
+            (0, shared_utils_1.logMessage)(`Archivo duplicado ignorado: ${file.name}`, 'warning');
         }
     });
     console.log('Total archivos seleccionados:', selectedFiles.length);
@@ -281,7 +273,7 @@ function updateFileList() {
                     ${courseInfo ? `<div style="font-size: 0.8em; color: #667eea; margin-top: 2px;">→ ${courseInfo}</div>` : ''}
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span class="file-size">${formatFileSize(file.size)}</span>
+                    <span class="file-size">${(0, shared_utils_1.formatFileSize)(file.size)}</span>
                     <button class="file-remove" onclick="removeFile(${index})" title="Eliminar archivo">
                         ${(0, icons_1.getIcon)('x', 16)}
                     </button>
@@ -295,36 +287,36 @@ function updateFileList() {
 // Remover archivo de la lista
 function removeFile(index) {
     const removedFile = selectedFiles.splice(index, 1)[0];
-    logMessage(`Archivo removido: ${removedFile.name}`, 'info');
+    (0, shared_utils_1.logMessage)(`Archivo removido: ${removedFile.name}`, 'info');
     updateFileList();
 }
 // Limpiar lista de archivos
 function clearFiles() {
     selectedFiles = [];
-    logMessage('Lista de archivos limpiada', 'info');
+    (0, shared_utils_1.logMessage)('Lista de archivos limpiada', 'info');
     updateFileList();
 }
 // Procesar archivos
 async function processFiles() {
     if (selectedFiles.length < 2 || isProcessing) {
         if (selectedFiles.length < 2) {
-            logMessage('Se necesitan al menos 2 archivos para procesar', 'warning');
+            (0, shared_utils_1.logMessage)('Se necesitan al menos 2 archivos para procesar', 'warning');
         }
         return;
     }
     isProcessing = true;
     updateFileList(); // Actualizar UI
     document.getElementById('processingSection').style.display = 'block';
-    logMessage(`Iniciando procesamiento de ${selectedFiles.length} archivos...`, 'info');
-    logMessage(`Sistema listo para procesamiento`, 'info');
+    (0, shared_utils_1.logMessage)(`Iniciando procesamiento de ${selectedFiles.length} archivos...`, 'info');
+    (0, shared_utils_1.logMessage)(`Sistema listo para procesamiento`, 'info');
     try {
         const results = await processExcelFilesReal();
         await generateConsolidatedFileReal(results);
         showResults(results);
-        logMessage('Procesamiento completado exitosamente', 'success');
+        (0, shared_utils_1.logMessage)('Procesamiento completado exitosamente', 'success');
     }
     catch (error) {
-        logMessage(`Error durante el procesamiento: ${error.message}`, 'error');
+        (0, shared_utils_1.logMessage)(`Error durante el procesamiento: ${error.message}`, 'error');
         console.error(error);
     }
     finally {
@@ -353,15 +345,15 @@ async function processExcelFilesReal() {
     // Ordenar archivos por número de curso (menor a mayor)
     const sortedFiles = [...selectedFiles].sort((a, b) => {
         const extractNumber = (fileName) => {
-            const match = fileName.match(/PAT_2025_(\d+)/);
+            const match = fileName.match(/PAT_\d{4}_(\d+)/);
             return match ? parseInt(match[1], 10) : 0;
         };
         return extractNumber(a.name) - extractNumber(b.name);
     });
-    logMessage(`Archivos ordenados por número de curso (${sortedFiles.length} archivos)`, 'info');
+    (0, shared_utils_1.logMessage)(`Archivos ordenados por número de curso (${sortedFiles.length} archivos)`, 'info');
     for (let i = 0; i < sortedFiles.length; i++) {
         const file = sortedFiles[i];
-        updateProgress(i, sortedFiles.length, `Procesando: ${file.name}`);
+        (0, shared_utils_1.updateProgress)(i, sortedFiles.length, `Procesando: ${file.name}`);
         try {
             // Simular procesamiento con datos de ejemplo
             const fileResult = await processExcelFileReal(file);
@@ -376,15 +368,15 @@ async function processExcelFilesReal() {
                 results.totalEliminated += fileResult.eliminated;
                 results.eliminatedEmails.push(...fileResult.eliminatedEmails);
                 results.successfulFiles++;
-                logMessage(`${file.name}: ${fileResult.data.length} filas, ${fileResult.eliminated} usuarios eliminados`, 'success');
+                (0, shared_utils_1.logMessage)(`${file.name}: ${fileResult.data.length} filas, ${fileResult.eliminated} usuarios eliminados`, 'success');
             }
         }
         catch (error) {
-            logMessage(`Error procesando ${file.name}: ${error.message}`, 'error');
+            (0, shared_utils_1.logMessage)(`Error procesando ${file.name}: ${error.message}`, 'error');
             results.fileResults[file.name] = { data: null, eliminated: 0, eliminatedEmails: [], error: error.message };
         }
     }
-    updateProgress(selectedFiles.length, selectedFiles.length, 'Procesamiento completado');
+    (0, shared_utils_1.updateProgress)(selectedFiles.length, selectedFiles.length, 'Procesamiento completado');
     // Finalizar batch processing y obtener todos los usuarios eliminados acumulados
     if (window.configFilters && window.configFilters.finishBatchProcessing) {
         window.configFilters.finishBatchProcessing();
@@ -460,7 +452,7 @@ async function processExcelFileReal(file) {
 }
 // Generar archivo consolidado (versión real con ExcelJS)
 async function generateConsolidatedFileReal(results) {
-    logMessage('Generando archivo Excel consolidado...', 'info');
+    (0, shared_utils_1.logMessage)('Generando archivo Excel consolidado...', 'info');
     try {
         // Crear nuevo workbook
         const workbook = new exceljs_1.default.Workbook();
@@ -493,7 +485,7 @@ async function generateConsolidatedFileReal(results) {
                     column.width = Math.max(header.length, 15);
                 });
                 sheetsCreated++;
-                logMessage(`Hoja creada: ${sheetName} (${data.length} filas, ${headers.length} columnas)`, 'info');
+                (0, shared_utils_1.logMessage)(`Hoja creada: ${sheetName} (${data.length} filas, ${headers.length} columnas)`, 'info');
             }
         });
         if (sheetsCreated === 0) {
@@ -613,10 +605,10 @@ async function generateConsolidatedFileReal(results) {
             const txtUrl = URL.createObjectURL(txtBlob);
             processedData.eliminatedFile = { url: txtUrl, fileName: `usuarios_eliminados_${timestamp}.txt` };
         }
-        logMessage(`Archivo Excel consolidado generado: ${fileName} (${sheetsCreated} hojas)`, 'success');
+        (0, shared_utils_1.logMessage)(`Archivo Excel consolidado generado: ${fileName} (${sheetsCreated} hojas)`, 'success');
     }
     catch (error) {
-        logMessage(`Error creando archivo Excel: ${error.message}`, 'error');
+        (0, shared_utils_1.logMessage)(`Error creando archivo Excel: ${error.message}`, 'error');
         throw error;
     }
 }
@@ -666,10 +658,10 @@ function filterUsersByEmailReal(data, headers) {
         const emailCount = result.eliminatedUsers.filter(u => u.type === 'email').length;
         const rutCount = result.eliminatedUsers.filter(u => u.type === 'rut').length;
         if (emailCount > 0) {
-            logMessage(`Usuarios eliminados por filtros de email: ${emailCount}`, 'warning');
+            (0, shared_utils_1.logMessage)(`Usuarios eliminados por filtros de email: ${emailCount}`, 'warning');
         }
         if (rutCount > 0) {
-            logMessage(`Usuarios eliminados por filtros de RUT: ${rutCount}`, 'warning');
+            (0, shared_utils_1.logMessage)(`Usuarios eliminados por filtros de RUT: ${rutCount}`, 'warning');
         }
         console.log(`Total usuarios eliminados: ${result.eliminated} (Email: ${emailCount}, RUT: ${rutCount})`);
         console.log(`Usuarios restantes: ${result.data.length}`);
@@ -713,7 +705,7 @@ function filterUsersByEmailBasic(data, headers) {
     }
     console.log(`Columnas de email encontradas: ${emailColumns.join(', ')}`);
     if (emailColumns.length === 0) {
-        logMessage('No se encontró columna de email, no se aplicó filtrado', 'warning');
+        (0, shared_utils_1.logMessage)('No se encontró columna de email, no se aplicó filtrado', 'warning');
         return { data: data, eliminated: 0, eliminatedEmails: [] };
     }
     const emailColumn = emailColumns[0]; // Usar la primera columna encontrada
@@ -748,7 +740,7 @@ function filterUsersByEmailBasic(data, headers) {
     console.log(`Usuarios eliminados (@uct.cl): ${eliminatedUsers.length}`);
     console.log(`Usuarios restantes: ${filteredData.length}`);
     if (eliminatedUsers.length > 0) {
-        logMessage(`Usuarios eliminados en ${emailColumn}: ${eliminatedUsers.join(', ')}`, 'warning');
+        (0, shared_utils_1.logMessage)(`Usuarios eliminados en ${emailColumn}: ${eliminatedUsers.join(', ')}`, 'warning');
     }
     return {
         data: filteredData,
@@ -758,15 +750,8 @@ function filterUsersByEmailBasic(data, headers) {
 }
 // Generar nombre de hoja
 function generateSheetName(fileName) {
-    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/PAT_2025_/i, 'Curso_');
+    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/PAT_\d{4}_/i, 'Curso_');
     return sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName;
-}
-// Actualizar progreso
-function updateProgress(current, total, message) {
-    const percent = Math.round((current / total) * 100);
-    document.getElementById('progressFill').style.width = `${percent}%`;
-    document.getElementById('progressText').textContent = message;
-    document.getElementById('progressPercent').textContent = `${percent}%`;
 }
 // Mostrar resultados
 function showResults(results) {
@@ -835,8 +820,8 @@ function showResults(results) {
     }
     downloadHTML += '</div>';
     downloadArea.innerHTML = downloadHTML;
-    logMessage(`Resultados mostrados - ${results.successfulFiles} archivos procesados exitosamente`, 'success');
-    logMessage(`Archivos listos para descarga`, 'info');
+    (0, shared_utils_1.logMessage)(`Resultados mostrados - ${results.successfulFiles} archivos procesados exitosamente`, 'success');
+    (0, shared_utils_1.logMessage)(`Archivos listos para descarga`, 'info');
 }
 // Mostrar lista detallada de archivos procesados
 function showProcessedFilesList(results) {
@@ -870,8 +855,8 @@ function showProcessedFilesList(results) {
 }
 // Extraer información del curso del nombre del archivo
 function extractCourseInfo(fileName) {
-    // Buscar patrón PAT_2025_XX
-    const match = fileName.match(/PAT_2025[_-](\d+)/i);
+    // Buscar patrón PAT_YYYY_XX
+    const match = fileName.match(/PAT_\d{4}[_-](\d+)/i);
     if (match) {
         return `Curso ${match[1]}`;
     }
@@ -881,44 +866,4 @@ function extractCourseInfo(fileName) {
         return `Curso ${courseMatch[1]}`;
     }
     return null;
-}
-// Funciones de utilidad
-function formatFileSize(bytes) {
-    if (bytes === 0)
-        return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-function logMessage(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
-    const logContainer = document.getElementById('logContainer');
-    if (!logContainer) {
-        console.warn('logContainer no encontrado');
-        return;
-    }
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${type}`;
-    logEntry.innerHTML = `
-        <span class="log-time">[${timestamp}]</span>
-        <span class="log-message">${message}</span>
-    `;
-    logContainer.appendChild(logEntry);
-    // Scroll automático al último elemento (solo dentro del contenedor)
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
-function clearLog() {
-    const logContainer = document.getElementById('logContainer');
-    logContainer.innerHTML = '';
-    logMessage('Log limpiado', 'info');
-}
-function goBack() {
-    if (typeof window.navigate === 'function') {
-        window.navigate('home');
-    }
-    else {
-        window.location.href = 'index.html';
-    }
 }

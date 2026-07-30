@@ -40,7 +40,7 @@ src/
 
 ### Seguridad Electron (IMPORTANTE)
 La configuración de `main.ts` usa:
-- `contextIsolation: true` (contextos aislados entre main y renderer)
+- `contextIsolation: false` (contextos aislados — ⚠️ en proceso de migración: actualmente false porque nodeIntegration: true requiere acceso directo a require; la meta es activar contextIsolation: true + desactivar nodeIntegration cuando se migre a bundler)
 - `nodeIntegration: true` (TEMPORALMENTE activado para compatibilidad con código existente)
 
 ### Rutas del sistema (sin idioma hardcodeado)
@@ -125,5 +125,7 @@ Consolida los Excel de asistencia (varios módulos por curso) en **un archivo po
 - [x] Puppeteer movido a main process
 - [x] Seguridad de Electron mejorada (contextIsolation + webSecurity)
 - [x] Código TypeScript limpio de `@ts-nocheck`
+- [x] Funciones duplicadas centralizadas en `shared-utils.ts` (toggleTheme, formatFileSize, logMessage, updateProgress, clearLog)
+- [x] Hardcodeos `PAT_2025_` reemplazados por regex genéricos `\d{4}`
+- [x] Puppeteer removido del warmup del renderer (solo corre en main)
 - [ ] `nodeIntegration: true` aún activo (pendiente migrar renderer a bundler o ES modules para poder desactivarlo)
-- [ ] Eliminar código duplicado (toggleTheme, goBack) en múltiples archivos renderer

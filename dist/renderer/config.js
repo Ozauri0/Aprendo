@@ -4,6 +4,8 @@ exports.renderConfigPage = renderConfigPage;
 // config.ts - Sistema de configuración avanzada para filtros de usuarios
 const icons_1 = require("./icons");
 const header_1 = require("./components/header");
+const shared_utils_1 = require("./shared-utils");
+const footer_1 = require("./components/footer");
 const title_bar_1 = require("./components/title-bar");
 // Variables globales
 let emailFilters = [];
@@ -298,9 +300,7 @@ function renderConfigPage(injectStyles, navigate) {
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${(0, footer_1.renderFooter)()}
     </div>
     `;
     initializeConfigSystem();
@@ -317,8 +317,8 @@ function renderConfigPage(injectStyles, navigate) {
     window.showEliminatedReport = showEliminatedReport;
     window.exportEliminatedReport = exportEliminatedReport;
     window.clearEliminatedHistory = clearEliminatedHistory;
-    window.toggleTheme = toggleTheme;
-    window.setTheme = setTheme;
+    window.toggleTheme = shared_utils_1.toggleTheme;
+    window.setTheme = shared_utils_1.setTheme;
     window.showDiagnostics = showDiagnostics;
     window.copyAllLogs = copyAllLogs;
     window.openLogFolder = openLogFolder;
@@ -383,18 +383,6 @@ async function openLogFolder() {
     if (!window.aprendoAPI?.openLogDir)
         return;
     await window.aprendoAPI.openLogDir();
-}
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-}
-// Función para establecer tema específico
-function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('aprendo-theme', theme);
 }
 // ================= MODAL DE CONFIRMACIÓN PERSONALIZADO =================
 // Reemplaza confirm() nativo que causa problemas de foco en Electron

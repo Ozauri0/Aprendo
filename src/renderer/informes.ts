@@ -2,7 +2,9 @@
 import './config';
 import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
+import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 export function renderInformesPage(
@@ -103,9 +105,7 @@ export function renderInformesPage(
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 
@@ -127,24 +127,6 @@ export function renderInformesPage(
     (window as any).navigate = navigate;
     (window as any).toggleTheme = toggleTheme;
     setupTitleBarActions();
-}
-
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
-}
-
-// Función para volver a la página principal
-function goBack() {
-    if (typeof (window as any).navigate === 'function') {
-        (window as any).navigate('home');
-    } else {
-        window.location.href = 'index.html';
-    }
 }
 
 // Variables globales
@@ -215,7 +197,8 @@ function addFilesToList(files) {
     
     const validFiles = files.filter(file => {
         const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
-        const isLogFile = file.name.toLowerCase().includes('logs_pat_2025_');
+        // Aceptar cualquier año (no solo 2025)
+        const isLogFile = /logs_pat_\d{4}_/i.test(file.name);
         
         if (!isExcel) {
             logMessage(`${file.name}: No es un archivo Excel válido`, 'warning');
@@ -335,15 +318,6 @@ function extractDateTime(fileName) {
         return `${day}/${month}/${year} ${hour}:${minute}`;
     }
     return null;
-}
-
-// Formatear tamaño de archivo
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // Quitar archivo de la lista
@@ -659,16 +633,8 @@ async function generateConsolidatedLogFile(results: any) {
 
 // Generar nombre de hoja
 function generateSheetName(fileName: string) {
-    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/logs_PAT_2025_/i, 'Curso_');
+    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/logs_PAT_\d{4}_/i, 'Curso_');
     return sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName;
-}
-
-// Actualizar progreso
-function updateProgress(current, total, message) {
-    const percent = Math.round((current / total) * 100);
-    document.getElementById('progressFill').style.width = `${percent}%`;
-    document.getElementById('progressText').textContent = message;
-    document.getElementById('progressPercent').textContent = `${percent}%`;
 }
 
 // Mostrar resultados
@@ -770,32 +736,4 @@ function showProcessedFilesList(results) {
     });
 }
 
-// Agregar mensaje al log
-function logMessage(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
-    
-    const logContainer = document.getElementById('logContainer');
-    if (!logContainer) {
-        console.warn('logContainer no encontrado');
-        return;
-    }
-    
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${type}`;
-    
-    logEntry.innerHTML = `
-        <span class="log-time">[${timestamp}]</span>
-        <span class="log-message">${message}</span>
-    `;
-    
-    logContainer.appendChild(logEntry);
-    // Scroll automático al último elemento (solo dentro del contenedor)
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
 
-function clearLog() {
-    const logContainer = document.getElementById('logContainer');
-    logContainer.innerHTML = '';
-    logMessage('Log limpiado', 'info');
-}

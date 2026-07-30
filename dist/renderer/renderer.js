@@ -42,6 +42,8 @@ const config = __importStar(require("./config"));
 const descargas = __importStar(require("./descargas"));
 const icons_1 = require("./icons");
 const header_1 = require("./components/header");
+const shared_utils_1 = require("./shared-utils");
+const footer_1 = require("./components/footer");
 const title_bar_1 = require("./components/title-bar");
 // Esperar a que el DOM esté cargado
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,11 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mountCurrentRoute();
         const hideOverlay = showLoadingOverlay('Cargando dependencias...');
         // Precalentar dependencias pesadas en el renderer y cerrar overlay al terminar
-        Promise.all([
-            Promise.resolve().then(() => __importStar(require('exceljs'))),
-            Promise.resolve().then(() => __importStar(require('puppeteer')))
-        ]).then(() => {
-            console.log('[warmup] exceljs y puppeteer cargados en renderer');
+        Promise.resolve().then(() => __importStar(require('exceljs'))).then(() => {
+            console.log('[warmup] exceljs cargado en renderer');
             hideOverlay();
         }).catch(err => {
             console.warn('[warmup] Error precalentando en renderer:', err);
@@ -361,13 +360,7 @@ function renderHomePage() {
                 </main>
             </div>
 
-            <footer role="contentinfo">
-                <div class="footer-brand">
-                    <span>Universidad Católica de Temuco</span>
-                </div>
-                <div class="footer-divider"></div>
-                <p>Aprendo UCT v1.3.1 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')" aria-label="Sitio web de Christian Ferrer, abre en navegador externo">Christian Ferrer</a></p>
-            </footer>
+            ${(0, footer_1.renderFooter)()}
         </div>`;
     initializeApp();
     (0, title_bar_1.setupTitleBarActions)();
@@ -382,27 +375,13 @@ function injectStylesFromFiles(files) {
         head.appendChild(link);
     });
 }
-// Funciones de tema claro/oscuro
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
-    // Sincronizar backgroundColor de la ventana para que coincida con el tema
-    try {
-        const { ipcRenderer } = require('electron');
-        ipcRenderer.send('window:set-background', newTheme === 'dark' ? '#0f172a' : '#f8fafc');
-    }
-    catch (_e) { }
-}
 // Exportar funciones para uso global
 window.openCalificaciones = openCalificaciones;
 window.openInformes = openInformes;
 window.openAsistencia = openAsistencia;
 window.openConfig = openConfig;
 window.openDescargas = openDescargas;
-window.toggleTheme = toggleTheme;
+window.toggleTheme = shared_utils_1.toggleTheme;
 // Mensaje de bienvenida en consola
 console.log(`
 Aprendo - Sistema de Gestión de Calificaciones

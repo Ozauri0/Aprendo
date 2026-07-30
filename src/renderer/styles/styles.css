@@ -402,10 +402,20 @@ html.is-maximized body {
        del container y se extiende al borde, pero su propio padding-right
        compensa para que su texto respete la misma zona. */
     padding-right: calc(var(--spacing-lg) + 18px);
-    flex: 0 0 auto;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
-    /* Toma su altura natural. El scroll del .page-scroll maneja el overflow. */
+    /* Crece para llenar el espacio disponible (.page-scroll maneja el overflow). */
+}
+
+/* ================= MAIN CONTENT ================= */
+/* main se expande para llenar el espacio disponible, empujando el footer
+   hacia abajo cuando el contenido es corto (ej. login de descargas). */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 /* ================= HEADER PRINCIPAL ================= */

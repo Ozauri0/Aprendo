@@ -4,7 +4,9 @@
 import './config';
 import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
+import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 // Tipos
@@ -132,9 +134,7 @@ export function renderAsistenciaPage(
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 
@@ -152,15 +152,6 @@ export function renderAsistenciaPage(
     (window as any).navigate = navigate;
     (window as any).toggleTheme = toggleTheme;
     setupTitleBarActions();
-}
-
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
 }
 
 // Configurar event listeners
@@ -634,14 +625,6 @@ async function saveSingleFile(index: number) {
     }
 }
 
-// Actualizar progreso
-function updateProgress(current: number, total: number, message: string) {
-    const percent = Math.round((current / total) * 100);
-    document.getElementById('progressFill')!.style.width = `${percent}%`;
-    document.getElementById('progressText')!.textContent = message;
-    document.getElementById('progressPercent')!.textContent = `${percent}%`;
-}
-
 // Mostrar resultados
 function showResults(results: any) {
     const resultsSection = document.getElementById('resultsSection')!;
@@ -725,40 +708,4 @@ function showResults(results: any) {
     downloadArea.innerHTML = downloadHTML;
 }
 
-// Funciones de utilidad
-function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 
-function logMessage(message: string, type: string = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
-
-    const logContainer = document.getElementById('logContainer');
-    if (!logContainer) {
-        console.warn('logContainer no encontrado');
-        return;
-    }
-
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${type}`;
-
-    logEntry.innerHTML = `
-        <span class="log-time">[${timestamp}]</span>
-        <span class="log-message">${message}</span>
-    `;
-
-    logContainer.appendChild(logEntry);
-    // Scroll automático al último elemento (solo dentro del contenedor)
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
-
-function clearLog() {
-    const logContainer = document.getElementById('logContainer')!;
-    logContainer.innerHTML = '';
-    logMessage('Log limpiado', 'info');
-}

@@ -8,7 +8,9 @@ exports.renderInformesPage = renderInformesPage;
 require("./config");
 const icons_1 = require("./icons");
 const header_1 = require("./components/header");
+const footer_1 = require("./components/footer");
 const title_bar_1 = require("./components/title-bar");
+const shared_utils_1 = require("./shared-utils");
 const exceljs_1 = __importDefault(require("exceljs"));
 function renderInformesPage(injectStyles, navigate) {
     selectedFiles = [];
@@ -102,45 +104,26 @@ function renderInformesPage(injectStyles, navigate) {
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${(0, footer_1.renderFooter)()}
     </div>
     `;
-    logMessage('Sistema de consolidación de informes iniciado', 'info');
+    (0, shared_utils_1.logMessage)('Sistema de consolidación de informes iniciado', 'info');
     setupEventListeners();
     try {
-        logMessage('ExcelJS cargado - Procesamiento de informes listo', 'success');
+        (0, shared_utils_1.logMessage)('ExcelJS cargado - Procesamiento de informes listo', 'success');
     }
     catch (error) {
         console.error('Error cargando ExcelJS:', error);
-        logMessage('Error: No se pudo cargar ExcelJS', 'error');
+        (0, shared_utils_1.logMessage)('Error: No se pudo cargar ExcelJS', 'error');
     }
     window.processFiles = processFiles;
     window.clearFiles = clearFiles;
     window.removeFile = removeFile;
-    window.clearLog = clearLog;
+    window.clearLog = shared_utils_1.clearLog;
     window.goBack = () => navigate('home');
     window.navigate = navigate;
-    window.toggleTheme = toggleTheme;
+    window.toggleTheme = shared_utils_1.toggleTheme;
     (0, title_bar_1.setupTitleBarActions)();
-}
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
-}
-// Función para volver a la página principal
-function goBack() {
-    if (typeof window.navigate === 'function') {
-        window.navigate('home');
-    }
-    else {
-        window.location.href = 'index.html';
-    }
 }
 // Variables globales
 let selectedFiles = [];
@@ -196,13 +179,14 @@ function addFilesToList(files) {
     console.log(`Intentando agregar ${files.length} archivos`);
     const validFiles = files.filter(file => {
         const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
-        const isLogFile = file.name.toLowerCase().includes('logs_pat_2025_');
+        // Aceptar cualquier año (no solo 2025)
+        const isLogFile = /logs_pat_\d{4}_/i.test(file.name);
         if (!isExcel) {
-            logMessage(`${file.name}: No es un archivo Excel válido`, 'warning');
+            (0, shared_utils_1.logMessage)(`${file.name}: No es un archivo Excel válido`, 'warning');
             return false;
         }
         if (!isLogFile) {
-            logMessage(`${file.name}: No parece ser un archivo de logs (falta 'logs_PAT_2025_')`, 'warning');
+            (0, shared_utils_1.logMessage)(`${file.name}: No parece ser un archivo de logs (falta 'logs_PAT_2025_')`, 'warning');
             // Permitir el archivo pero mostrar advertencia
         }
         return true;
@@ -211,21 +195,21 @@ function addFilesToList(files) {
     const totalFiles = selectedFiles.length + validFiles.length;
     if (totalFiles > 60) {
         const permitidos = 60 - selectedFiles.length;
-        logMessage(`Se pueden agregar máximo 60 archivos. Solo se agregarán los primeros ${permitidos}`, 'error');
+        (0, shared_utils_1.logMessage)(`Se pueden agregar máximo 60 archivos. Solo se agregarán los primeros ${permitidos}`, 'error');
         validFiles.splice(permitidos);
     }
     // Verificar duplicados
     const newFiles = validFiles.filter(file => {
         const isDuplicate = selectedFiles.some(existing => existing.name === file.name);
         if (isDuplicate) {
-            logMessage(`${file.name}: Archivo duplicado, se omitirá`, 'warning');
+            (0, shared_utils_1.logMessage)(`${file.name}: Archivo duplicado, se omitirá`, 'warning');
             return false;
         }
         return true;
     });
     // Agregar archivos nuevos
     selectedFiles.push(...newFiles);
-    logMessage(`Se agregaron ${newFiles.length} archivos de informes`, 'success');
+    (0, shared_utils_1.logMessage)(`Se agregaron ${newFiles.length} archivos de informes`, 'success');
     updateFileList();
 }
 // Actualizar lista de archivos en la UI
@@ -267,7 +251,7 @@ function updateFileList() {
         return `
             <div class="file-item">
                 <span class="file-name">${(0, icons_1.getIcon)('file-spreadsheet', 16)} ${file.name}</span>
-                <span class="file-size">${formatFileSize(file.size)}</span>
+                <span class="file-size">${(0, shared_utils_1.formatFileSize)(file.size)}</span>
                 <button class="file-remove" onclick="removeFile(${originalIndex})">
                     ${(0, icons_1.getIcon)('x', 16)}
                 </button>
@@ -299,22 +283,13 @@ function extractDateTime(fileName) {
     }
     return null;
 }
-// Formatear tamaño de archivo
-function formatFileSize(bytes) {
-    if (bytes === 0)
-        return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 // Quitar archivo de la lista
 function removeFile(index) {
     if (isProcessing)
         return;
     const removedFile = selectedFiles[index];
     selectedFiles.splice(index, 1);
-    logMessage(`Archivo quitado: ${removedFile.name}`, 'info');
+    (0, shared_utils_1.logMessage)(`Archivo quitado: ${removedFile.name}`, 'info');
     updateFileList();
 }
 // Limpiar lista de archivos
@@ -322,29 +297,29 @@ function clearFiles() {
     if (isProcessing)
         return;
     selectedFiles = [];
-    logMessage('Lista de archivos limpiada', 'info');
+    (0, shared_utils_1.logMessage)('Lista de archivos limpiada', 'info');
     updateFileList();
 }
 // Procesar archivos de informes
 async function processFiles() {
     if (selectedFiles.length < 1 || isProcessing) {
         if (selectedFiles.length < 1) {
-            logMessage('Se necesita al menos 1 archivo para procesar', 'warning');
+            (0, shared_utils_1.logMessage)('Se necesita al menos 1 archivo para procesar', 'warning');
         }
         return;
     }
     isProcessing = true;
     updateFileList();
     document.getElementById('processingSection').style.display = 'block';
-    logMessage(`Iniciando consolidación de ${selectedFiles.length} archivos de informes...`, 'info');
+    (0, shared_utils_1.logMessage)(`Iniciando consolidación de ${selectedFiles.length} archivos de informes...`, 'info');
     try {
         const results = await processLogFiles();
         await generateConsolidatedLogFile(results);
         showResults(results);
-        logMessage('Consolidación de informes completada exitosamente', 'success');
+        (0, shared_utils_1.logMessage)('Consolidación de informes completada exitosamente', 'success');
     }
     catch (error) {
-        logMessage(`Error durante la consolidación: ${error.message}`, 'error');
+        (0, shared_utils_1.logMessage)(`Error durante la consolidación: ${error.message}`, 'error');
         console.error(error);
     }
     finally {
@@ -370,10 +345,10 @@ async function processLogFiles() {
         };
         return extractNumber(a.name) - extractNumber(b.name);
     });
-    logMessage(`Archivos ordenados por número de curso (${sortedFiles.length} archivos)`, 'info');
+    (0, shared_utils_1.logMessage)(`Archivos ordenados por número de curso (${sortedFiles.length} archivos)`, 'info');
     for (let i = 0; i < sortedFiles.length; i++) {
         const file = sortedFiles[i];
-        updateProgress(i, sortedFiles.length, `Procesando: ${file.name}`);
+        (0, shared_utils_1.updateProgress)(i, sortedFiles.length, `Procesando: ${file.name}`);
         try {
             const fileResult = await processLogFile(file);
             results.fileResults[file.name] = fileResult;
@@ -382,15 +357,15 @@ async function processLogFiles() {
                 results.processedSheets.push({ sheetName, data: fileResult.data });
                 results.totalRecords += fileResult.data.length;
                 results.successfulFiles++;
-                logMessage(`${file.name}: ${fileResult.data.length} registros procesados`, 'success');
+                (0, shared_utils_1.logMessage)(`${file.name}: ${fileResult.data.length} registros procesados`, 'success');
             }
         }
         catch (error) {
-            logMessage(`Error procesando ${file.name}: ${error.message}`, 'error');
+            (0, shared_utils_1.logMessage)(`Error procesando ${file.name}: ${error.message}`, 'error');
             results.fileResults[file.name] = { data: null, error: error.message };
         }
     }
-    updateProgress(sortedFiles.length, sortedFiles.length, 'Consolidación completada');
+    (0, shared_utils_1.updateProgress)(sortedFiles.length, sortedFiles.length, 'Consolidación completada');
     return results;
 }
 // Procesar un archivo de log individual
@@ -463,7 +438,7 @@ async function generateConsolidatedLogFile(results) {
     // Obtener modo de consolidación configurado
     const consolidationMode = window.configFilters?.getConsolidationMode() || 'separate';
     console.log('Modo de consolidación:', consolidationMode);
-    logMessage(`Generando archivo Excel consolidado (modo: ${consolidationMode === 'separate' ? 'hojas separadas' : 'hoja única'})...`, 'info');
+    (0, shared_utils_1.logMessage)(`Generando archivo Excel consolidado (modo: ${consolidationMode === 'separate' ? 'hojas separadas' : 'hoja única'})...`, 'info');
     try {
         // Crear nuevo workbook
         const workbook = new exceljs_1.default.Workbook();
@@ -508,7 +483,7 @@ async function generateConsolidatedLogFile(results) {
                 const column = worksheet.getColumn(index + 1);
                 column.width = Math.max(header.length, 15);
             });
-            logMessage(`Hoja única creada con ${allData.length} registros de ${results.processedSheets.length} archivos`, 'success');
+            (0, shared_utils_1.logMessage)(`Hoja única creada con ${allData.length} registros de ${results.processedSheets.length} archivos`, 'success');
         }
         else {
             // MODO HOJAS SEPARADAS: Crear una hoja por cada archivo (comportamiento actual)
@@ -539,13 +514,13 @@ async function generateConsolidatedLogFile(results) {
                         column.width = Math.max(header.length, 15);
                     });
                     sheetsCreated++;
-                    logMessage(`Hoja creada: ${sheetName} (${data.length} registros)`, 'info');
+                    (0, shared_utils_1.logMessage)(`Hoja creada: ${sheetName} (${data.length} registros)`, 'info');
                 }
             });
             if (sheetsCreated === 0) {
                 throw new Error('No se crearon hojas en el archivo Excel');
             }
-            logMessage(`${sheetsCreated} hojas creadas exitosamente`, 'success');
+            (0, shared_utils_1.logMessage)(`${sheetsCreated} hojas creadas exitosamente`, 'success');
         }
         // Generar archivo Excel
         const buffer = await workbook.xlsx.writeBuffer();
@@ -558,24 +533,17 @@ async function generateConsolidatedLogFile(results) {
         const fileName = `Logs_Actividad_Consolidados_${timestamp}.xlsx`;
         // Guardar referencia para descarga
         processedData.consolidatedFile = { url, fileName };
-        logMessage(`Archivo Excel de informes creado: ${fileName}`, 'success');
+        (0, shared_utils_1.logMessage)(`Archivo Excel de informes creado: ${fileName}`, 'success');
     }
     catch (error) {
-        logMessage(`Error creando archivo Excel de informes: ${error.message}`, 'error');
+        (0, shared_utils_1.logMessage)(`Error creando archivo Excel de informes: ${error.message}`, 'error');
         throw error;
     }
 }
 // Generar nombre de hoja
 function generateSheetName(fileName) {
-    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/logs_PAT_2025_/i, 'Curso_');
+    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/logs_PAT_\d{4}_/i, 'Curso_');
     return sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName;
-}
-// Actualizar progreso
-function updateProgress(current, total, message) {
-    const percent = Math.round((current / total) * 100);
-    document.getElementById('progressFill').style.width = `${percent}%`;
-    document.getElementById('progressText').textContent = message;
-    document.getElementById('progressPercent').textContent = `${percent}%`;
 }
 // Mostrar resultados
 function showResults(results) {
@@ -660,28 +628,4 @@ function showProcessedFilesList(results) {
         `;
         processedFilesList.appendChild(processedItem);
     });
-}
-// Agregar mensaje al log
-function logMessage(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
-    const logContainer = document.getElementById('logContainer');
-    if (!logContainer) {
-        console.warn('logContainer no encontrado');
-        return;
-    }
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${type}`;
-    logEntry.innerHTML = `
-        <span class="log-time">[${timestamp}]</span>
-        <span class="log-message">${message}</span>
-    `;
-    logContainer.appendChild(logEntry);
-    // Scroll automático al último elemento (solo dentro del contenedor)
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
-function clearLog() {
-    const logContainer = document.getElementById('logContainer');
-    logContainer.innerHTML = '';
-    logMessage('Log limpiado', 'info');
 }

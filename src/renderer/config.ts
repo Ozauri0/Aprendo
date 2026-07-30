@@ -1,6 +1,8 @@
 // config.ts - Sistema de configuración avanzada para filtros de usuarios
 import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
+import { toggleTheme, setTheme } from './shared-utils';
+import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
 
 // Variables globales
@@ -302,9 +304,7 @@ export function renderConfigPage(
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 
@@ -393,20 +393,6 @@ async function copyAllLogs() {
 async function openLogFolder() {
     if (!window.aprendoAPI?.openLogDir) return;
     await window.aprendoAPI.openLogDir();
-}
-
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-}
-
-// Función para establecer tema específico
-function setTheme(theme: string) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('aprendo-theme', theme);
 }
 
 // ================= MODAL DE CONFIRMACIÓN PERSONALIZADO =================

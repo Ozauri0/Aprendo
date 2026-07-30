@@ -1,6 +1,7 @@
 // descargas.ts - Gestor de descargas (renderer) usando IPC seguro
 import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
+import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
 
 // Unsubscribe functions for IPC listeners
@@ -137,13 +138,7 @@ export function renderDescargasPage(
             </main>
         </div>
 
-        <footer>
-            <div class="footer-brand">
-                <span>Universidad Católica de Temuco</span>
-            </div>
-            <div class="footer-divider"></div>
-            <p>Aprendo UCT v1.3.1 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')">Christian Ferrer</a></p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 

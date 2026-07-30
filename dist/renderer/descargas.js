@@ -4,6 +4,7 @@ exports.renderDescargasPage = renderDescargasPage;
 // descargas.ts - Gestor de descargas (renderer) usando IPC seguro
 const icons_1 = require("./icons");
 const header_1 = require("./components/header");
+const footer_1 = require("./components/footer");
 const title_bar_1 = require("./components/title-bar");
 // Unsubscribe functions for IPC listeners
 let unsubLog = null;
@@ -139,13 +140,7 @@ function renderDescargasPage(injectStyles, navigate) {
             </main>
         </div>
 
-        <footer>
-            <div class="footer-brand">
-                <span>Universidad Católica de Temuco</span>
-            </div>
-            <div class="footer-divider"></div>
-            <p>Aprendo UCT v1.3.1 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')">Christian Ferrer</a></p>
-        </footer>
+        ${(0, footer_1.renderFooter)()}
     </div>
     `;
     const activityLog = document.getElementById('activityLog');

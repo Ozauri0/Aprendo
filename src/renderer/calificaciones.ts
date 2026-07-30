@@ -2,7 +2,9 @@
 import './config';
 import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
+import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 // Variables globales
@@ -117,9 +119,7 @@ export function renderCalificacionesPage(
             </main>
         </div>
 
-        <footer>
-            <p>Aprendo UCT v1.3.1 &mdash; Universidad Católica de Temuco</p>
-        </footer>
+        ${renderFooter()}
     </div>
     `;
 
@@ -146,15 +146,6 @@ export function renderCalificacionesPage(
     (window as any).navigate = navigate;
     (window as any).toggleTheme = toggleTheme;
     setupTitleBarActions();
-}
-
-// Función de toggle de tema
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
 }
 
 // Configurar event listeners
@@ -391,7 +382,7 @@ async function processExcelFilesReal() {
     // Ordenar archivos por número de curso (menor a mayor)
     const sortedFiles = [...selectedFiles].sort((a, b) => {
         const extractNumber = (fileName) => {
-            const match = fileName.match(/PAT_2025_(\d+)/);
+            const match = fileName.match(/PAT_\d{4}_(\d+)/);
             return match ? parseInt(match[1], 10) : 0;
         };
         return extractNumber(a.name) - extractNumber(b.name);
@@ -884,16 +875,8 @@ function filterUsersByEmailBasic(data: any[], headers: string[]): any {
 
 // Generar nombre de hoja
 function generateSheetName(fileName: string) {
-    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/PAT_2025_/i, 'Curso_');
+    let sheetName = fileName.replace(/\.xlsx?$/i, '').replace(/PAT_\d{4}_/i, 'Curso_');
     return sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName;
-}
-
-// Actualizar progreso
-function updateProgress(current, total, message) {
-    const percent = Math.round((current / total) * 100);
-    document.getElementById('progressFill').style.width = `${percent}%`;
-    document.getElementById('progressText').textContent = message;
-    document.getElementById('progressPercent').textContent = `${percent}%`;
 }
 
 // Mostrar resultados
@@ -1015,8 +998,8 @@ function showProcessedFilesList(results) {
 
 // Extraer información del curso del nombre del archivo
 function extractCourseInfo(fileName) {
-    // Buscar patrón PAT_2025_XX
-    const match = fileName.match(/PAT_2025[_-](\d+)/i);
+    // Buscar patrón PAT_YYYY_XX
+    const match = fileName.match(/PAT_\d{4}[_-](\d+)/i);
     if (match) {
         return `Curso ${match[1]}`;
     }
@@ -1030,48 +1013,4 @@ function extractCourseInfo(fileName) {
     return null;
 }
 
-// Funciones de utilidad
-function formatFileSize(bytes: number) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 
-function logMessage(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
-    
-    const logContainer = document.getElementById('logContainer');
-    if (!logContainer) {
-        console.warn('logContainer no encontrado');
-        return;
-    }
-    
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${type}`;
-    
-    logEntry.innerHTML = `
-        <span class="log-time">[${timestamp}]</span>
-        <span class="log-message">${message}</span>
-    `;
-    
-    logContainer.appendChild(logEntry);
-    // Scroll automático al último elemento (solo dentro del contenedor)
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
-
-function clearLog() {
-    const logContainer = document.getElementById('logContainer');
-    logContainer.innerHTML = '';
-    logMessage('Log limpiado', 'info');
-}
-
-function goBack() {
-    if (typeof (window as any).navigate === 'function') {
-        (window as any).navigate('home');
-    } else {
-        window.location.href = 'index.html';
-    }
-}

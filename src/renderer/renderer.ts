@@ -6,6 +6,8 @@ import * as config from './config';
 import * as descargas from './descargas';
 import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
+import { toggleTheme } from './shared-utils';
+import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
 
 // Esperar a que el DOM esté cargado
@@ -14,11 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mountCurrentRoute();
         const hideOverlay = showLoadingOverlay('Cargando dependencias...');
         // Precalentar dependencias pesadas en el renderer y cerrar overlay al terminar
-        Promise.all([
-            import('exceljs'),
-            import('puppeteer')
-        ]).then(() => {
-            console.log('[warmup] exceljs y puppeteer cargados en renderer');
+        import('exceljs').then(() => {
+            console.log('[warmup] exceljs cargado en renderer');
             hideOverlay();
         }).catch(err => {
             console.warn('[warmup] Error precalentando en renderer:', err);
@@ -354,13 +353,7 @@ function renderHomePage() {
                 </main>
             </div>
 
-            <footer role="contentinfo">
-                <div class="footer-brand">
-                    <span>Universidad Católica de Temuco</span>
-                </div>
-                <div class="footer-divider"></div>
-                <p>Aprendo UCT v1.3.1 &mdash; Desarrollado por <a class="footer-link" href="#" onclick="event.preventDefault(); require('electron').shell.openExternal('https://christianferrer.me')" aria-label="Sitio web de Christian Ferrer, abre en navegador externo">Christian Ferrer</a></p>
-            </footer>
+            ${renderFooter()}
         </div>`;
     initializeApp();
     setupTitleBarActions();
@@ -375,20 +368,6 @@ export function injectStylesFromFiles(files: string[]) {
         link.href = file;
         head.appendChild(link);
     });
-}
-
-// Funciones de tema claro/oscuro
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('aprendo-theme', newTheme);
-    // Sincronizar backgroundColor de la ventana para que coincida con el tema
-    try {
-        const { ipcRenderer } = require('electron');
-        ipcRenderer.send('window:set-background', newTheme === 'dark' ? '#0f172a' : '#f8fafc');
-    } catch (_e) {}
 }
 
 // Exportar funciones para uso global
