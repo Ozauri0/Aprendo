@@ -659,12 +659,6 @@ function loadAttendanceModules() {
     });
 }
 
-// Función para cambiar tabs
-// Función para volver atrás
-function goBack() {
-    window.location.href = 'index.html';
-}
-
 // ================= FILTROS DE EMAIL =================
 
 function addEmailFilter() {

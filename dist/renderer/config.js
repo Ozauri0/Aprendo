@@ -622,11 +622,6 @@ function loadAttendanceModules() {
         el.checked = selected.includes(el.dataset.module || '');
     });
 }
-// Función para cambiar tabs
-// Función para volver atrás
-function goBack() {
-    window.location.href = 'index.html';
-}
 // ================= FILTROS DE EMAIL =================
 function addEmailFilter() {
     const input = document.getElementById('emailInput');
