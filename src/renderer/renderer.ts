@@ -9,6 +9,11 @@ import { renderHeader, applyStoredTheme } from './components/header';
 import { toggleTheme } from './shared-utils';
 import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
+import {
+  showUpdateAvailable,
+  showUpdateProgress,
+  showUpdateReady,
+} from './components/update-dialog';
 
 // Esperar a que el DOM esté cargado
 document.addEventListener('DOMContentLoaded', () => {
@@ -39,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeApp() {
     updateStatus();
     setupEventListeners();
+    setupUpdateListeners();
     console.log('Aplicación Aprendo inicializada correctamente');
 }
 
@@ -167,6 +173,39 @@ function hideLoadingOverlay() {
 function setupEventListeners() {
     // Agregar eventos adicionales aquí si es necesario
     console.log('Event listeners configurados');
+}
+
+// Configurar listeners de auto-update
+function setupUpdateListeners() {
+    if (!window.aprendoAPI) {
+        console.warn('[update] API no disponible, update deshabilitado');
+        return;
+    }
+
+    window.aprendoAPI.onUpdateAvailable((info) => {
+        console.log('[update] Nueva versión disponible:', info.version);
+        showUpdateAvailable(info,
+            () => window.aprendoAPI.downloadUpdate(),
+            () => console.log('[update] Usuario pospuso la actualización')
+        );
+    });
+
+    window.aprendoAPI.onUpdateProgress((progress) => {
+        showUpdateProgress(progress,
+            () => console.log('[update] Usuario canceló descarga')
+        );
+    });
+
+    window.aprendoAPI.onUpdateDownloaded((info) => {
+        console.log('[update] Descarga completada:', info.version);
+        showUpdateReady(info.version,
+            () => window.aprendoAPI.installUpdate()
+        );
+    });
+
+    window.aprendoAPI.onUpdateError((data) => {
+        console.error('[update] Error:', data.message);
+    });
 }
 
 // Actualizar el estado del sistema

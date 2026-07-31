@@ -52,6 +52,31 @@ const api = {
   // Platform info
   getPlatform: () => process.platform as 'win32' | 'darwin' | 'linux',
 
+  // Auto-update events
+  onUpdateAvailable: (callback: (data: import('../shared/types').UpdateInfo) => void) => {
+    const handler = (_e: IpcRendererEvent, data: import('../shared/types').UpdateInfo) => callback(data);
+    ipcRenderer.on('update:available', handler);
+    return () => ipcRenderer.removeListener('update:available', handler);
+  },
+  onUpdateProgress: (callback: (data: import('../shared/types').UpdateProgress) => void) => {
+    const handler = (_e: IpcRendererEvent, data: import('../shared/types').UpdateProgress) => callback(data);
+    ipcRenderer.on('update:download-progress', handler);
+    return () => ipcRenderer.removeListener('update:download-progress', handler);
+  },
+  onUpdateDownloaded: (callback: (data: { version: string }) => void) => {
+    const handler = (_e: IpcRendererEvent, data: { version: string }) => callback(data);
+    ipcRenderer.on('update:downloaded', handler);
+    return () => ipcRenderer.removeListener('update:downloaded', handler);
+  },
+  onUpdateError: (callback: (data: { message: string }) => void) => {
+    const handler = (_e: IpcRendererEvent, data: { message: string }) => callback(data);
+    ipcRenderer.on('update:error', handler);
+    return () => ipcRenderer.removeListener('update:error', handler);
+  },
+  // Acciones del update
+  downloadUpdate: () => ipcRenderer.send('update:download'),
+  installUpdate: () => ipcRenderer.send('update:install'),
+
   // Versions
   versions: {
     electron: process.versions.electron,

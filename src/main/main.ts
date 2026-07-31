@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, screen, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { registerDownloadHandlers } from './download-manager';
+import { initAutoUpdater, downloadUpdate, installUpdate } from './updater';
 import { logger } from './logger';
 
 // Loguear info del sistema lo antes posible (útil para diagnóstico en PCs remotos)
@@ -253,9 +254,16 @@ app.whenReady().then(async () => {
   registerDownloadHandlers();
   registerWindowHandlers();
   registerBatchSaveHandler();
+  // Auto-update IPC handlers
+  ipcMain.on('update:download', () => downloadUpdate());
+  ipcMain.on('update:install', () => installUpdate());
   // Calentar dependencias en segundo plano antes de mostrar UI
   warmMainDependencies();
   createWindow();
+  // Iniciar el sistema de auto-update después de crear la ventana
+  if (mainWindow) {
+    initAutoUpdater(mainWindow);
+  }
 });
 
 app.on('window-all-closed', () => {
