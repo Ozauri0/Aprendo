@@ -1,189 +1,168 @@
-# 📚 Aprendo - Sistema de Gestión de Calificaciones
+# 📚 Aprendo UCT — Sistema de Gestión de Calificaciones
 
-Aplicación desarrollada en Electron, moderna para procesar calificaciones y consolidar informes
+Aplicación de escritorio **Electron + TypeScript** para la gestión de calificaciones, informes y asistencia de la Universidad Católica de Temuco. Automatiza descargas desde la plataforma Aprendo UCT mediante Puppeteer, procesa archivos Excel con ExcelJS y consolida reportes.
 
-![Electron](https://img.shields.io/badge/electron-latest-blue)
-![Status](https://img.shields.io/badge/status-production-success)
+> **Electron 42** · **TypeScript 5.6** · **Tests: 75/75** · **Estado: producción**
 
 ---
 
-## ✨ Características
+## ✨ Funcionalidades
 
-- 📊 **Procesar Calificaciones**: Importa y procesa hasta 60 archivos Excel de calificaciones
-- 📈 **Consolidar Informes**: Consolida archivos de logs/informes de actividad en un Excel
-- 🎨 **Diseño Moderno**: Interfaz elegante, minimalista y profesional
-- 📱 **Responsive**: Se adapta a cualquier tamaño de pantalla
-- ♿ **Accesible**: Cumple con estándares WCAG
-- 🚀 **Rápido**: Procesamiento eficiente de archivos
+| Módulo | Descripción |
+|--------|-------------|
+| 📊 **Consolidar Calificaciones** | Importa hasta 60 archivos Excel, aplica filtros de email/RUT y genera un Excel consolidado |
+| 📋 **Consolidar Informes** | Agrupa logs de participación en un Excel (hojas separadas o única) |
+| 📅 **Consolidar Asistencia** | Agrupa archivos por curso, genera un Excel por curso con una hoja por módulo |
+| 📥 **Gestor de Descargas** | Login automático en Aprendo UCT, descarga masiva de notas/logs/asistencia vía Puppeteer |
+| ⚙️ **Configuración** | Filtros de usuarios, preferencias, diagnóstico del sistema |
+| 🌙 **Tema oscuro/claro** | Soporte completo con variables CSS |
+| 🔄 **Auto-Update** | Detecta nuevas versiones en GitHub Releases, descarga e instala automáticamente |
 
 ---
 
 ## 🚀 Inicio Rápido
 
-### Instalación
+```bash
+git clone https://github.com/Ozauri0/Aprendo.git
+cd Aprendo
+npm install
+npm run dev
+```
+
+---
+
+## 🛠️ Scripts
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm run dev` | Compila TypeScript + inicia la app en modo desarrollo |
+| `npm run build` | Compila TypeScript + copia assets a `dist/` |
+| `npm run dist` | Build + empaqueta `.exe` para Windows + publica en GitHub Releases |
+| `npm test` | Ejecuta 75 tests unitarios con Jest |
+| `npx electron-builder --win` | Solo empaqueta el `.exe` (sin publicar) |
+
+### Publicar una actualización
 
 ```bash
-# Clonar el repositorio
-git clone <repo-url>
+# 1. Autenticarse con GitHub CLI (solo la primera vez)
+gh auth login
 
-# Instalar dependencias
-npm install
+# 2. Subir versión en package.json
 
-# Ejecutar la aplicación
-tsc && npm start
+# 3. Build + publicar en GitHub Releases
+npm run dist
 ```
+
+La app detecta automáticamente nuevas versiones al abrirse y muestra un modal con el changelog.
 
 ---
 
-### Paleta de Colores:
+## 🧱 Stack Tecnológico
 
-```css
-Primario:    #2563eb  /* Azul profesional */
-Secundario:  #64748b  /* Gris pizarra */
-Éxito:       #10b981  /* Verde esmeralda */
-Peligro:     #ef4444  /* Rojo vibrante */
-Advertencia: #f59e0b  /* Naranja */
-```
-
-### Ver Componentes:
-
-Abre `components.html` en tu navegador para ver todos los componentes disponibles y ejemplos de uso.
-
----
-
-## 🛠️ Tecnologías
-
-- **Electron** - Framework de aplicaciones de escritorio
-- **HTML5/CSS3** - Interfaz de usuario moderna
-- **TypeScript** - Lógica de la aplicación
-- **XLSX.js** - Procesamiento de archivos Excel
+| Tecnología | Uso |
+|-----------|-----|
+| **Electron 42** | Framework de escritorio |
+| **TypeScript 5.6** | Lenguaje (ES2021, CommonJS) |
+| **ExcelJS 4.4** | Lectura/escritura de Excel |
+| **Puppeteer 24** | Automatización de navegador para descargas |
+| **electron-updater** | Auto-update desde GitHub Releases |
+| **Jest + ts-jest** | Tests unitarios (75 tests) |
+| **electron-builder** | Empaquetado NSIS para Windows |
 
 ---
 
 ## 📁 Estructura del Proyecto
 
 ```
-aprendo/
-├── 📄 index.html              # Página principal
-├── 📄 calificaciones.html     # Página de calificaciones
-├── 📄 informes.html           # Página de informes
-├── 📄 components.html         # Guía de componentes
-│
-├── 🎨 styles.css             # Estilos principales
-├── 🎨 global-styles.css      # Utilidades y extras
-├── 🎨 calificaciones.css     # Estilos específicos (reservado)
-├── 🎨 informes.css           # Estilos específicos (reservado)
-│
-├── 📜 main.ts                # Proceso principal de Electron
-├── 📜 renderer.ts            # Renderer de la página principal
-├── 📜 calificaciones.ts      # Lógica de calificaciones
-├── 📜 informes.ts            # Lógica de informes
-├── 📜 start-electron.ts      # Script de inicio
-│
-└── 📦 package.json           # Dependencias y scripts
+src/
+├── main/                       # Proceso principal de Electron
+│   ├── main.ts                 # Ventana, IPC, seguridad
+│   ├── download-manager.ts     # Puppeteer: login, descargas
+│   ├── updater.ts              # Auto-update desde GitHub Releases
+│   └── logger.ts               # Logging a archivo
+├── preload/
+│   └── preload.ts              # Puente IPC main ↔ renderer
+├── renderer/                   # UI (SPA con hash router)
+│   ├── renderer.ts             # Entry point + router
+│   ├── calificaciones.ts       # Consolidación de calificaciones
+│   ├── informes.ts             # Consolidación de informes/logs
+│   ├── asistencia.ts           # Consolidación de asistencia
+│   ├── descargas.ts            # UI del gestor de descargas
+│   ├── config.ts               # Configuración y filtros
+│   ├── icons.ts                # Íconos SVG (Lucide)
+│   ├── shared-utils.ts         # Utilidades compartidas
+│   ├── components/
+│   │   ├── header.ts           # Header reutilizable
+│   │   ├── footer.ts           # Footer reutilizable
+│   │   ├── title-bar.ts        # Barra de título custom
+│   │   └── update-dialog.ts    # Modal de actualización
+│   ├── styles/                 # CSS con variables y tema oscuro
+│   └── assets/                 # Logo, fuentes
+└── shared/
+    ├── types.ts                # Tipos para IPC
+    └── filter-engine.ts        # Motor de filtrado (email/RUT)
+
+tests/                          # Tests unitarios (Jest)
+├── filter-engine.test.ts       # 48 tests del motor de filtrado
+├── shared-utils.test.ts        # 14 tests de utilidades
+└── asistencia-parser.test.ts   # 13 tests de parseo de asistencia
 ```
 
 ---
 
-## 🎯 Uso
+## 🔒 Seguridad
 
-### 1. Página Principal
+- `contextIsolation: false` + `nodeIntegration: true` (en proceso de migración a bundler)
+- `webSecurity: true` con CSP habilitado
+- Puppeteer solo corre en el main process (nunca en el renderer)
+- Comunicación main ↔ renderer exclusivamente vía IPC
+- Fuentes Inter embebidas como data URIs (offline, sin dependencias externas)
 
-Accede a las diferentes funcionalidades:
-- **Procesar Calificaciones**: Importa y procesa archivos Excel
-- **Consolidar Informes**: Consolida logs y reportes
-- **Configuración**: Configura filtros para eliminación de academicos/ayudantes de la consolidación de notas. 
-
-### 2. Procesar Calificaciones
-
-1. Haz clic en "Abrir Calificaciones"
-2. Arrastra archivos Excel o haz clic para seleccionar
-3. Mínimo 2 archivos requeridos (máximo 60)
-4. Haz clic en "Procesar Archivos"
-5. Observa el progreso en tiempo real
-6. Descarga los resultados
-
-### 3. Consolidar Informes
-
-Similar a Procesar Calificaciones:
-1. Haz clic en "Consolidar Informes"
-2. Selecciona archivos Excel
-3. Procesa y descarga resultados
-
-### 4. Descargar notas
-
-1. Haz clic en "Gestor de Descargas"
-2. Inicia sesión con tus credenciales de la plataforma APRENDO
-3. Selecciona el rango de id's de cursos para iniciar la descarga masiva
-4. Haz clic en Comenzar Descargas
 ---
 
-
-## 🧪 Testing
+## 🧪 Tests
 
 ```bash
-# Ejecutar en modo desarrollo
-npm run dev
-
-# Construir para producción
-npm run build
+npm test                 # 75 tests, 3 suites
 ```
 
----
+| Suite | Tests | Cobertura |
+|-------|-------|-----------|
+| `filter-engine` | 48 | `normalizeRut`, `validateRut`, `validateEmail`, `findColumns`, `matchesFilter`, `applyFilters` |
+| `shared-utils` | 14 | `formatFileSize`, `logMessage`, `clearLog`, `updateProgress` |
+| `asistencia-parser` | 13 | `parseAttendanceFileName`, `groupFilesByCourse` |
 
-## 📈 Roadmap
-
-### Versión Actual (v1.0.0)
-- ✅ Diseño moderno y minimalista
-- ✅ Consistencia total entre páginas
-- ✅ Responsive design
-- ✅ Accesibilidad mejorada
-- ✅ Modo oscuro/claro toggle
-- ✅ Configuración personalizable
-- ✅ Descarga masiva automatica 
-
-### Próximas Versiones
-- [ ] Estadísticas y gráficos
-- [ ] Consolidación de asistencia
-- [ ] Mejoras de diseño
 ---
 
 ## 🐛 Solución de Problemas
 
-### La aplicación no inicia
+### La app no inicia / pantalla en blanco
+
 ```bash
-# Reinstalar dependencias
-rm -rf node_modules
+rm -rf dist node_modules
 npm install
-tsc && npm start
+npm run build
+npm run dev
 ```
 
-### Los estilos no se aplican
-Verifica que los archivos CSS estén en la ubicación correcta y los links en HTML sean correctos.
+### Puppeteer no encuentra navegador
 
-### Errores al procesar archivos
-- Verifica que los archivos Excel no estén corruptos
-- Asegúrate de tener al menos 2 archivos
-- Revisa los logs para más detalles
+La app busca Chrome → Edge → Brave en el sistema. Si no hay ninguno, descarga Chromium automáticamente. Requiere **Visual C++ Redistributable x64**.
+
+### Error de login en Aprendo UCT
+
+Verifica que las credenciales sean correctas. Revisa los logs en **Configuración → Diagnóstico**.
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto es privado y de uso interno.
-
----
-
-## 👨‍💻 Autor
-
-**Christian Ferrer**
+ISC — Uso interno Universidad Católica de Temuco.
 
 ---
 
 <div align="center">
 
-**Hecho con ❤️ para la gestión eficiente de calificaciones**
-
-[⬆ Volver arriba](#-aprendo---sistema-de-gestión-de-calificaciones)
+**Hecho por [Christian Ferrer](https://christianferrer.me)**
 
 </div>
