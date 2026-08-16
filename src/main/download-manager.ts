@@ -2,7 +2,9 @@
 import { Browser, Page } from 'puppeteer';
 import { ipcMain, IpcMainInvokeEvent, WebContents, app } from 'electron';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
+import * as browsersApi from '@puppeteer/browsers';
 import { logger } from './logger';
 
 const APRENDO_URL = 'https://aprendo.uct.cl/';
@@ -20,85 +22,155 @@ function getDefaultDownloadPath(): string {
   return target;
 }
 
-// Busca Chrome/Edge/Brave ya instalado en el sistema. Si encuentra uno, retorna
-// su executablePath para que Puppeteer lo use en vez de Chromium bundled.
-// Esto resuelve el caso típico en PCs de usuario donde hay Chrome pero no se
-// descargó el Chromium de Puppeteer.
+// Busca Chrome/Edge/Brave/Chromium ya instalado en el sistema, en cualquier SO
+// (Windows/Linux/macOS). Primero prueba ubicaciones estándar de cada plataforma
+// (sin rutas de usuario hardcodeadas: usa variables de entorno del SO) y luego
+// recorre el PATH buscando binarios conocidos. Si encuentra uno, retorna su
+// executablePath para que Puppeteer lo use en vez de descargar Chrome.
 function findSystemBrowser(): { path: string; name: string } | null {
-  const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
-  const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
-  const localApp = process.env.LOCALAPPDATA || '';
-  const checks: { p: string; n: string }[] = [
-    { p: path.join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
-    { p: path.join(pfx86, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
-    { p: path.join(localApp, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome (per-user)' },
-    { p: path.join(pf, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
-    { p: path.join(pfx86, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
-    { p: path.join(localApp, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge (per-user)' },
-    { p: path.join(pf, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'), n: 'Brave' },
-  ];
-  for (const c of checks) {
+  const candidates: { p: string; n: string }[] = [];
+
+  if (process.platform === 'win32') {
+    const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const localApp = process.env.LOCALAPPDATA || '';
+    candidates.push(
+      { p: path.join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
+      { p: path.join(pfx86, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
+      { p: path.join(localApp, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome (per-user)' },
+      { p: path.join(pf, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
+      { p: path.join(pfx86, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
+      { p: path.join(localApp, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge (per-user)' },
+      { p: path.join(pf, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'), n: 'Brave' },
+    );
+  } else if (process.platform === 'darwin') {
+    candidates.push(
+      { p: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', n: 'Chrome' },
+      { p: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', n: 'Edge' },
+      { p: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', n: 'Brave' },
+      { p: '/Applications/Chromium.app/Contents/MacOS/Chromium', n: 'Chromium' },
+    );
+  } else if (process.platform === 'linux') {
+    // Google instala Chrome en /opt/google/chrome en varias distribuciones
+    // y ese directorio no siempre está en el PATH.
+    candidates.push(
+      { p: '/opt/google/chrome/chrome', n: 'Chrome' },
+      { p: '/opt/google/chrome/google-chrome', n: 'Chrome' },
+    );
+  }
+
+  for (const c of candidates) {
     try {
-      if (c.p && fs.existsSync(c.p)) {
+      if (c.p && fs.existsSync(c.p) && isExecutableFile(c.p)) {
         logger.info('puppeteer', `Navegador del sistema encontrado: ${c.n} -> ${c.p}`);
         return { path: c.p, name: c.n };
       }
     } catch { /* ignore */ }
   }
+
+  // Recorrer el PATH (sin ejecutar comandos, portable en los 3 SO).
+  const binNames = process.platform === 'win32'
+    ? ['chrome.exe', 'msedge.exe', 'brave.exe', 'chromium.exe']
+    : [
+        'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser',
+        'microsoft-edge', 'microsoft-edge-stable', 'msedge', 'brave', 'brave-browser',
+      ];
+  const pathDirs = (process.env.PATH || '').split(path.delimiter).filter(d => d);
+  for (const dir of pathDirs) {
+    for (const name of binNames) {
+      try {
+        const full = path.join(dir, name);
+        if (fs.existsSync(full) && isExecutableFile(full)) {
+          logger.info('puppeteer', `Navegador del sistema encontrado en PATH: ${full}`);
+          return { path: full, name };
+        }
+      } catch { /* ignore */ }
+    }
+  }
   return null;
 }
 
-// Descarga el Chromium de Puppeteer si no está en la caché. Retorna true si
-// quedó disponible (ya estaba o se descargó), false si falló.
-async function ensurePuppeteerChromium(puppeteer: any): Promise<boolean> {
+function isExecutableFile(filePath: string): boolean {
+  if (process.platform === 'win32') return true; // X_OK no es confiable en Windows
   try {
-    const browserFetcher = (puppeteer as any).createBrowserFetcher?.();
-    if (!browserFetcher) {
-      // Puppeteer v22+ usa @puppeteer/browsers en vez de createBrowserFetcher.
-      // Intentamos ejecutar el CLI de Puppeteer que descarga el navegador.
-      logger.info('puppeteer', 'createBrowserFetcher no disponible, intentando CLI install...');
-      const { execFile } = require('child_process');
-      await new Promise<void>((resolve, reject) => {
-        const puppeteerDir = path.dirname(require.resolve('puppeteer'));
-        // Buscar el ejecutable CLI dentro de node_modules/puppeteer
-        const cliCandidates = [
-          path.join(puppeteerDir, 'lib', 'cjs', 'puppeteer', 'node', 'cli.js'),
-          path.join(puppeteerDir, 'lib', 'cjs', 'puppeteer', 'cli.js'),
-        ];
-        const cli = cliCandidates.find(f => fs.existsSync(f));
-        if (!cli) {
-          reject(new Error('No se encontró el CLI de Puppeteer'));
-          return;
-        }
-        logger.info('puppeteer', `Ejecutando: node ${cli} browsers install chrome`);
-        execFile(process.execPath, [cli, 'browsers', 'install', 'chrome'], {
-          timeout: 300_000,
-          env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-        }, (err: Error | null, stdout: string, stderr: string) => {
-          if (err) {
-            logger.error('puppeteer', `CLI install falló: ${err.message}\nstdout: ${stdout}\nstderr: ${stderr}`);
-            reject(err);
-          } else {
-            logger.info('puppeteer', `CLI install OK: ${stdout.trim()}`);
-            resolve();
-          }
-        });
-      });
-      return true;
-    }
-    const rev = (puppeteer as any)._preferredRevision || '143.0.7499.169';
-    const revisionInfo = browserFetcher.revisionInfo(rev);
-    if (revisionInfo.local) {
-      logger.info('puppeteer', `Chromium ya está en caché: ${revisionInfo.executablePath}`);
-      return true;
-    }
-    logger.info('puppeteer', `Descargando Chromium rev ${rev}...`);
-    await browserFetcher.download(rev);
-    logger.info('puppeteer', 'Chromium descargado OK');
+    fs.accessSync(filePath, fs.constants.X_OK);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+// Garantiza que haya un Chrome utilizable para Puppeteer:
+//   1. Si el Chrome bundled de Puppeteer ya está en su caché (~/.cache/puppeteer,
+//      o PUPPETEER_CACHE_DIR si está definido), lo usa tal cual.
+//   2. Si no, descarga Chrome for Testing con la API oficial de @puppeteer/browsers
+//      (reemplaza al viejo createBrowserFetcher, removido en Puppeteer v22+, y al
+//      hack del CLI que dependía de rutas internas de node_modules).
+// Retorna el executablePath si quedó disponible, o null si falló.
+async function ensurePuppeteerChromium(puppeteer: any): Promise<string | null> {
+  try {
+    // 1) ¿El Chrome que Puppeteer espera ya está en la caché?
+    let expectedPath: string | null = null;
+    try {
+      expectedPath = typeof puppeteer?.executablePath === 'function'
+        ? puppeteer.executablePath()
+        : null;
+    } catch {
+      expectedPath = null;
+    }
+    if (expectedPath && fs.existsSync(expectedPath)) {
+      logger.info('puppeteer', `Chrome de Puppeteer ya está en caché: ${expectedPath}`);
+      return expectedPath;
+    }
+
+    // 2) Descargar Chrome for Testing en la misma caché que usa puppeteer.launch().
+    const platform = browsersApi.detectBrowserPlatform();
+    if (!platform) {
+      logger.error('puppeteer', `No se puede descargar Chrome en esta plataforma: ${process.platform}/${process.arch}`);
+      return null;
+    }
+    // Usar el build exacto que espera esta versión de Puppeteer: extraerlo de la
+    // ruta que calcula puppeteer.executablePath() (p.ej. ".../chrome/linux-143.0.7499.169/...").
+    // Si no se puede extraer, caer a la versión 'stable' del dashboard de CfT.
+    const pathMatch = (expectedPath || '').match(/(linux|win\d*|mac(?:_arm)?)-(\d+\.\d+\.\d+\.\d+)/i);
+    const buildId = pathMatch?.[2] ??
+      await browsersApi.resolveBuildId(browsersApi.Browser.CHROME, platform, 'stable');
+    const cacheDir = process.env.PUPPETEER_CACHE_DIR || path.join(os.homedir(), '.cache', 'puppeteer');
+    const installPath = browsersApi.computeExecutablePath({
+      cacheDir,
+      browser: browsersApi.Browser.CHROME,
+      buildId,
+    });
+    if (fs.existsSync(installPath)) {
+      logger.info('puppeteer', `Chrome for Testing ya está instalado: ${installPath}`);
+      return installPath;
+    }
+
+    logger.info('puppeteer', `Descargando Chrome for Testing (build ${buildId}, ~160 MB). La primera vez puede tardar varios minutos...`);
+    let lastLoggedPct = -1;
+    await browsersApi.install({
+      browser: browsersApi.Browser.CHROME,
+      buildId,
+      cacheDir,
+      downloadProgressCallback: (downloaded, total) => {
+        if (!total) return;
+        const pct = Math.floor((downloaded / total) * 100);
+        if (pct >= lastLoggedPct + 20) {
+          lastLoggedPct = pct;
+          logger.info('puppeteer', `Descargando Chrome: ${pct}%`);
+        }
+      },
+    });
+
+    if (fs.existsSync(installPath)) {
+      logger.info('puppeteer', 'Chrome for Testing descargado OK');
+      return installPath;
+    }
+    logger.error('puppeteer', `La instalación terminó pero no se encontró el binario en ${installPath}`);
+    return null;
   } catch (err) {
     logger.error('puppeteer', 'ensurePuppeteerChromium falló', err);
-    return false;
+    return null;
   }
 }
 
@@ -275,35 +347,49 @@ async function launchAndLogin(username: string, password: string, webContents: W
   logger.info('puppeteer', 'Importando módulo puppeteer...');
   const puppeteer = await import('puppeteer');
 
-  // Decidir qué binario usar:
-  //   1. Chrome/Edge/Brave del sistema (si existe) — preferido, evita descargas.
-  //   2. Chromium bundled de Puppeteer — descarga automática si no hay sistema.
-  //   3. Si todo falla, mensaje claro con instrucciones.
-  const systemBrowser = findSystemBrowser();
+  // Decidir qué binario usar (compatible Windows/Linux/macOS, sin rutas fijas):
+  //   1. Chrome bundled de Puppeteer si ya está en su caché (versión exacta
+  //      emparejada con esta versión de Puppeteer — la más confiable).
+  //   2. Chrome/Edge/Brave del sistema, buscado en ubicaciones estándar y PATH.
+  //   3. Descarga automática de Chrome for Testing con @puppeteer/browsers.
+  //   4. Si todo falla, mensaje claro con instrucciones.
   let executablePath: string | undefined;
-  if (systemBrowser) {
-    executablePath = systemBrowser.path;
-    logger.info('puppeteer', `Usando ${systemBrowser.name} del sistema: ${executablePath}`);
+  try {
+    executablePath = puppeteer.executablePath();
+    if (executablePath && !fs.existsSync(executablePath)) executablePath = undefined;
+  } catch {
+    executablePath = undefined;
+  }
+
+  if (executablePath) {
+    logger.info('puppeteer', `Usando Chrome de Puppeteer en caché: ${executablePath}`);
   } else {
-    logger.info('puppeteer', 'No hay navegador del sistema, intentando descargar Chromium...');
-    const ok = await ensurePuppeteerChromium(puppeteer as any);
-    if (!ok) {
-      const hint = 'No se encontró Chrome/Edge instalado y no se pudo descargar Chromium. Instale Google Chrome desde https://google.com/chrome y vuelva a intentar.';
-      logger.error('puppeteer', hint);
-      logToRenderer(webContents, hint, 'error');
-      throw new Error(hint);
+    const systemBrowser = findSystemBrowser();
+    if (systemBrowser) {
+      executablePath = systemBrowser.path;
+      logger.info('puppeteer', `Usando ${systemBrowser.name} del sistema: ${executablePath}`);
+    } else {
+      logger.info('puppeteer', 'No hay navegador del sistema, descargando Chrome for Testing...');
+      executablePath = (await ensurePuppeteerChromium(puppeteer as any)) ?? undefined;
     }
+  }
+
+  if (!executablePath) {
+    const hint = 'No se encontró Chrome/Edge/Chromium instalado y no se pudo descargar Chrome automáticamente. Verifique su conexión a internet y vuelva a intentar.';
+    logger.error('puppeteer', hint);
+    logToRenderer(webContents, hint, 'error');
+    throw new Error(hint);
   }
 
   let browser: Browser;
   try {
     logger.info('puppeteer', `Lanzando navegador (headless=true, --no-sandbox)...`);
     const launchOpts: any = {
+      executablePath,
       headless: true,
       defaultViewport: null,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
     };
-    if (executablePath) launchOpts.executablePath = executablePath;
     browser = await puppeteer.launch(launchOpts);
     logger.info('puppeteer', 'Navegador lanzado OK');
   } catch (err: any) {
