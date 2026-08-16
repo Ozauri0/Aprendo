@@ -11,6 +11,7 @@ let rutFilters = [];
 let eliminatedUsersHistory = [];
 let persistenceEnabled = true; // Siempre activado
 let consolidationMode = 'separate'; // 'separate' o 'single'
+let attendanceConsolidationMode = 'separate'; // 'separate' | 'course_single' | 'all_single'
 let autoSave = true;
 let detailedLogs = true;
 let maxFiles = 60;
@@ -272,6 +273,41 @@ export function renderConfigPage(
 
                             <div class="setting-item full-width">
                                 <div class="setting-info">
+                                    <label class="setting-label" for="attendanceConsolidationMode">
+                                        Modo de Consolidación de Asistencia
+                                    </label>
+                                    <span class="setting-description">Define cómo se organizarán los archivos de asistencia al consolidarlos</span>
+                                </div>
+                                <div class="radio-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="attendanceConsolidationMode" value="separate"
+                                            id="attendanceSeparate" checked>
+                                        <div class="radio-content">
+                                            <span class="radio-label">Archivos Separados</span>
+                                            <span class="radio-description">Un Excel por curso con una hoja por módulo de asistencia</span>
+                                        </div>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="attendanceConsolidationMode" value="course_single"
+                                            id="attendanceCourseSingle">
+                                        <div class="radio-content">
+                                            <span class="radio-label">Misma Hoja por Curso</span>
+                                            <span class="radio-description">Un Excel por curso con las asistencias apiladas en una sola hoja</span>
+                                        </div>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="attendanceConsolidationMode" value="all_single"
+                                            id="attendanceAllSingle">
+                                        <div class="radio-content">
+                                            <span class="radio-label">Todo en una Hoja</span>
+                                            <span class="radio-description">Todos los cursos y asistencias en un único Excel con una sola hoja</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="setting-item full-width">
+                                <div class="setting-info">
                                     <label class="setting-label">
                                         Tema de la Aplicación
                                     </label>
@@ -522,6 +558,7 @@ const DEFAULT_CONFIG = {
     rutFilters: [],
     persistenceEnabled: true,
     consolidationMode: 'separate',
+    attendanceConsolidationMode: 'separate',
     autoSave: true,
     detailedLogs: true,
     maxFiles: 60
@@ -580,6 +617,18 @@ function setupEventListeners() {
                 consolidationMode = this.value;
                 saveConfiguration(); // Guardado automático
                 console.log('Modo de consolidación cambiado a:', consolidationMode);
+            }
+        });
+    });
+
+    // Modo de consolidación de asistencia
+    const attendanceConsolidationRadios = document.querySelectorAll('input[name="attendanceConsolidationMode"]');
+    attendanceConsolidationRadios.forEach(radio => {
+        radio.addEventListener('change', function () {
+            if (this.checked) {
+                attendanceConsolidationMode = this.value;
+                saveConfiguration(); // Guardado automático
+                console.log('Modo de consolidación de asistencia cambiado a:', attendanceConsolidationMode);
             }
         });
     });
@@ -1304,6 +1353,7 @@ function saveConfiguration(showNotif = false) {
         eliminatedUsersHistory: eliminatedUsersHistory,
         persistenceEnabled: persistenceEnabled,
         consolidationMode: consolidationMode,
+        attendanceConsolidationMode: attendanceConsolidationMode,
         autoSave: autoSave,
         detailedLogs: detailedLogs,
         maxFiles: maxFiles,
@@ -1338,12 +1388,14 @@ function loadConfiguration() {
             persistenceEnabled = config.persistenceEnabled !== undefined ?
                 config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
             consolidationMode = config.consolidationMode || DEFAULT_CONFIG.consolidationMode;
+            attendanceConsolidationMode = config.attendanceConsolidationMode || DEFAULT_CONFIG.attendanceConsolidationMode;
             autoSave = config.autoSave !== undefined ? config.autoSave : DEFAULT_CONFIG.autoSave;
             detailedLogs = config.detailedLogs !== undefined ? config.detailedLogs : DEFAULT_CONFIG.detailedLogs;
             maxFiles = config.maxFiles || DEFAULT_CONFIG.maxFiles;
 
             console.log('Configuración cargada exitosamente');
             console.log('Modo de consolidación:', consolidationMode);
+            console.log('Modo de consolidación de asistencia:', attendanceConsolidationMode);
         } else {
             // Primera vez - usar configuración por defecto
             emailFilters = [...DEFAULT_CONFIG.emailFilters];
@@ -1351,6 +1403,7 @@ function loadConfiguration() {
             eliminatedUsersHistory = [];
             persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
             consolidationMode = DEFAULT_CONFIG.consolidationMode;
+            attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
             autoSave = DEFAULT_CONFIG.autoSave;
             detailedLogs = DEFAULT_CONFIG.detailedLogs;
             maxFiles = DEFAULT_CONFIG.maxFiles;
@@ -1365,6 +1418,7 @@ function loadConfiguration() {
         eliminatedUsersHistory = [];
         persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
         consolidationMode = DEFAULT_CONFIG.consolidationMode;
+        attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
         autoSave = DEFAULT_CONFIG.autoSave;
         detailedLogs = DEFAULT_CONFIG.detailedLogs;
         maxFiles = DEFAULT_CONFIG.maxFiles;
@@ -1409,6 +1463,12 @@ function updateUI() {
             consolidationSingle.checked = true;
         }
     }
+
+    // Actualizar radio buttons de consolidación de asistencia
+    const attendanceRadios = document.querySelectorAll<HTMLInputElement>('input[name="attendanceConsolidationMode"]');
+    attendanceRadios.forEach(radio => {
+        radio.checked = radio.value === attendanceConsolidationMode;
+    });
 
     // Actualizar checkbox de autoSave
     const autoSaveCheckbox = document.getElementById('autoSave') as HTMLInputElement;
@@ -1488,6 +1548,7 @@ function getBatchEliminatedUsers() {
     }),
     getEliminatedHistory: () => eliminatedUsersHistory,
     getConsolidationMode: () => consolidationMode,
+    getAttendanceConsolidationMode: () => attendanceConsolidationMode,
     getAutoSave: () => autoSave,
     getDetailedLogs: () => detailedLogs,
     getMaxFiles: () => maxFiles,
@@ -1519,6 +1580,8 @@ function getBatchEliminatedUsers() {
                 eliminatedUsersHistory = config.eliminatedUsersHistory || [];
                 persistenceEnabled = config.persistenceEnabled !== undefined ?
                     config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
+                consolidationMode = config.consolidationMode || DEFAULT_CONFIG.consolidationMode;
+                attendanceConsolidationMode = config.attendanceConsolidationMode || DEFAULT_CONFIG.attendanceConsolidationMode;
             } else {
                 // Primera vez - usar configuración por defecto
                 emailFilters = [...DEFAULT_CONFIG.emailFilters];

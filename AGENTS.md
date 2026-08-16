@@ -110,7 +110,12 @@ El preload expone `window.aprendoAPI` con métodos seguros:
 3. **Asistencia**: Para cada ID, visita `course/view.php?id={id}`, busca TODOS los enlaces `/mod/attendance/view.php`, extrae el `attendanceId` de cada uno, navega a `mod/attendance/export.php?id={attendanceId}`, hace clic en `#id_submitbutton` (OK), descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Asistencia {nombre_modulo}.xlsx`. El usuario puede filtrar módulos por palabra clave (campo "Filtrar Asistencia", separado por comas, guardado en `localStorage.aprendo_attendance_filter`).
 
 ### Módulo Consolidar Asistencia (`asistencia.ts`)
-Consolida los Excel de asistencia (varios módulos por curso) en **un archivo por curso con una hoja por módulo**:
+Consolida los Excel de asistencia (varios módulos por curso) según el **modo de consolidación de asistencia** configurado en Configuración (radio de 3 opciones, persistido en `localStorage.aprendo_user_filters_config` → `attendanceConsolidationMode`, expuesto via `configFilters.getAttendanceConsolidationMode()`, default `separate`):
+1. `separate` (default): **un archivo por curso con una hoja por módulo** (comportamiento clásico).
+2. `course_single`: un archivo por curso con **una sola hoja** donde los módulos van apilados verticalmente (metadatos + encabezados repetidos por bloque, fila en blanco entre bloques) — `generateCourseWorkbookSingleSheet()`.
+3. `all_single`: **un único Excel con una sola hoja** (`Asistencias_Consolidadas.xlsx`), cursos apilados con fila de título `Curso: ...` en negrita y sus módulos debajo — `generateAllInOneWorkbook()`.
+Helpers compartidos de los modos apilados: `appendBlock()` (agrega bloque + formato negrita/relleno), `trimTrailingEmptyRows()` (recorta filas vacías finales del export de Moodle), `attendanceModeLabel()`.
+
 1. Parsea nombres tipo `PAT_2026_01_Asistencias Asistencia {MODULO}.xlsx` → curso `PAT_2026_01` + módulo `{MODULO}` (también acepta `PAT_01 Asistencia {MODULO}`; sin patrón → grupo `Sin_Curso`). Ojo: usar `(?!\d)` y no `\b` en el regex del curso porque `_` es carácter de palabra.
 2. Agrupa por curso (ordenado por número), módulos ordenados alfabéticamente (`localeCompare 'es'`).
 3. Cada hoja preserva la estructura completa del export de Moodle: metadatos (Curso/Grupo filas 1-2), encabezados en fila 4 (negrita + relleno), datos desde fila 5. Nombre de hoja = nombre del módulo (sanitizado, máx. 31 chars, deduplicado).
