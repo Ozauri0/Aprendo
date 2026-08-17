@@ -3,6 +3,7 @@
 
 interface UpdateInfo {
   version: string;
+  currentVersion: string;
   releaseNotes?: string;
   releaseDate?: string;
 }
@@ -15,16 +16,16 @@ interface UpdateProgress {
 }
 
 let updateDialog: HTMLDivElement | null = null;
-let userDismissed = false;
+let dismissedVersion: string | null = null;
 
 /**
  * Muestra el modal: "Nueva versión disponible" con changelog.
  */
 export function showUpdateAvailable(info: UpdateInfo, onUpdate: () => void, onDismiss: () => void): void {
-  if (userDismissed) return;
+  if (dismissedVersion === info.version) return;
   removeDialog();
 
-  const versionActual = 'v1.3.1'; // Se podría obtener del package.json
+  const versionActual = `v${escapeHtml(info.currentVersion)}`;
   const releaseNotesHtml = formatReleaseNotes(info.releaseNotes);
 
   updateDialog = createModal(`
@@ -38,9 +39,9 @@ export function showUpdateAvailable(info: UpdateInfo, onUpdate: () => void, onDi
       <div class="update-versions">
         <span class="version-old">${versionActual}</span>
         <span class="version-arrow">→</span>
-        <span class="version-new">v${info.version}</span>
+        <span class="version-new">v${escapeHtml(info.version)}</span>
       </div>
-      ${info.releaseDate ? `<p class="update-date">Publicada: ${new Date(info.releaseDate).toLocaleDateString('es-CL')}</p>` : ''}
+      ${info.releaseDate ? `<p class="update-date">Publicada: ${escapeHtml(new Date(info.releaseDate).toLocaleDateString('es-CL'))}</p>` : ''}
       ${releaseNotesHtml ? `<div class="update-changelog"><h3>¿Qué incluye esta versión?</h3>${releaseNotesHtml}</div>` : ''}
       <div class="update-actions">
         <button class="btn btn-primary" id="updateBtn">Actualizar ahora</button>
@@ -57,7 +58,7 @@ export function showUpdateAvailable(info: UpdateInfo, onUpdate: () => void, onDi
   };
 
   document.getElementById('updateDismissBtn')!.onclick = () => {
-    userDismissed = true;
+    dismissedVersion = info.version;
     removeDialog();
     onDismiss();
   };
@@ -67,7 +68,6 @@ export function showUpdateAvailable(info: UpdateInfo, onUpdate: () => void, onDi
  * Muestra barra de progreso de descarga.
  */
 export function showUpdateProgress(progress: UpdateProgress, onCancel: () => void): void {
-  if (userDismissed) return;
   removeDialog();
 
   const mbDownloaded = (progress.transferred / 1024 / 1024).toFixed(1);
@@ -101,7 +101,6 @@ export function showUpdateProgress(progress: UpdateProgress, onCancel: () => voi
   document.body.appendChild(updateDialog);
 
   document.getElementById('updateCancelBtn')!.onclick = () => {
-    userDismissed = true;
     removeDialog();
     onCancel();
   };
@@ -111,7 +110,6 @@ export function showUpdateProgress(progress: UpdateProgress, onCancel: () => voi
  * Muestra modal: "Descarga completada. ¿Reiniciar?"
  */
 export function showUpdateReady(version: string, onInstall: () => void): void {
-  if (userDismissed) return;
   removeDialog();
 
   updateDialog = createModal(`
@@ -122,7 +120,7 @@ export function showUpdateReady(version: string, onInstall: () => void): void {
         </svg>
       </div>
       <h2>¡Actualización lista!</h2>
-      <p>La versión <strong>v${version}</strong> se instalará al reiniciar la app.</p>
+       <p>La versión <strong>v${escapeHtml(version)}</strong> se instalará al reiniciar la app.</p>
       <div class="update-actions">
         <button class="btn btn-primary" id="updateInstallBtn">Reiniciar ahora</button>
       </div>
@@ -159,8 +157,8 @@ function removeDialog(): void {
 
 function formatReleaseNotes(notes?: string): string {
   if (!notes) return '';
-  // Convierte markdown simple a HTML (negrita, listas, links)
-  return notes
+  // Escapar primero evita que el contenido controlado por GitHub se interprete como HTML.
+  return escapeHtml(notes)
     .replace(/### (.+)/g, '<h4>$1</h4>')
     .replace(/## (.+)/g, '<h3>$1</h3>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -168,4 +166,14 @@ function formatReleaseNotes(notes?: string): string {
     .replace(/(<li>.*<\/li>)/s, (match) => `<ul>${match}</ul>`)
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;',
+  }[character]));
 }

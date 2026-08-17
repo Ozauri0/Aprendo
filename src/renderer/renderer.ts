@@ -192,8 +192,12 @@ function setupUpdateListeners() {
 
     window.aprendoAPI.onUpdateProgress((progress) => {
         showUpdateProgress(progress,
-            () => console.log('[update] Usuario canceló descarga')
+            () => window.aprendoAPI.cancelUpdate()
         );
+    });
+
+    window.aprendoAPI.onUpdateCancelled(() => {
+        console.log('[update] Descarga cancelada');
     });
 
     window.aprendoAPI.onUpdateDownloaded((info) => {

@@ -58,7 +58,7 @@ Las fuentes Inter están **embebidas como data URIs en base64 dentro de `global-
 El `package.json` declara `asarUnpack` para que ciertos archivos se desempaqueten del `app.asar` y sean servibles por el protocolo `file://`:
 - `**/node_modules/puppeteer*/**` y `**/node_modules/@puppeteer/**` — los binarios nativos de Puppeteer no funcionan desde asar.
 - `**/dist/renderer/assets/fonts/**` — fallback por si se decide usar fuentes externas en el futuro (no necesario actualmente porque van embebidas en el CSS).
-**Build**: `npm run dist` → instalador en `release/Aprendo Setup 1.3.1.exe` y portable en `release/win-unpacked/`.
+**Build**: `npm run dist:win` → instalador en `release/Aprendo Setup <version>.exe` y portable en `release/win-unpacked/`. La versión se toma de `package.json` y se refleja mediante `app.getVersion()`.
 
 ### Diagnóstico de problemas en PC "limpio"
 Si el login no responde o la UI se ve rota en un PC sin muchas dependencias instaladas:

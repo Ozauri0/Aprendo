@@ -68,6 +68,11 @@ const api = {
     ipcRenderer.on('update:downloaded', handler);
     return () => ipcRenderer.removeListener('update:downloaded', handler);
   },
+  onUpdateCancelled: (callback: (data: { version: string }) => void) => {
+    const handler = (_e: IpcRendererEvent, data: { version: string }) => callback(data);
+    ipcRenderer.on('update:cancelled', handler);
+    return () => ipcRenderer.removeListener('update:cancelled', handler);
+  },
   onUpdateError: (callback: (data: { message: string }) => void) => {
     const handler = (_e: IpcRendererEvent, data: { message: string }) => callback(data);
     ipcRenderer.on('update:error', handler);
@@ -75,6 +80,7 @@ const api = {
   },
   // Acciones del update
   downloadUpdate: () => ipcRenderer.send('update:download'),
+  cancelUpdate: () => ipcRenderer.send('update:cancel'),
   installUpdate: () => ipcRenderer.send('update:install'),
 
   // Versions

@@ -96,6 +96,7 @@ export interface BatchSaveResult {
 // ================= AUTO-UPDATE =================
 export interface UpdateInfo {
   version: string;
+  currentVersion: string;
   releaseNotes?: string;
   releaseDate?: string;
 }

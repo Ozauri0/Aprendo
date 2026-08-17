@@ -37,23 +37,36 @@ npm run dev
 |---------|-------------|
 | `npm run dev` | Compila TypeScript + inicia la app en modo desarrollo |
 | `npm run build` | Compila TypeScript + copia assets a `dist/` |
-| `npm run dist` | Build + empaqueta `.exe` para Windows + publica en GitHub Releases |
+| `npm run dist` | Alias de `npm run dist:win` |
+| `npm run dist:win` | Build + empaqueta Windows NSIS x64 + publica en GitHub Releases |
+| `npm run dist:mac` | Build + empaqueta macOS x64/arm64 + publica en GitHub Releases |
+| `npm run dist:linux` | Build + empaqueta Linux AppImage/deb x64 + publica en GitHub Releases |
+| `npm run dist:all` | Intenta generar y publicar los tres sistemas |
 | `npm test` | Ejecuta 75 tests unitarios con Jest |
 | `npx electron-builder --win` | Solo empaqueta el `.exe` (sin publicar) |
 
 ### Publicar una actualización
 
 ```bash
-# 1. Autenticarse con GitHub CLI (solo la primera vez)
-gh auth login
+# 1. Configurar un token de GitHub con permisos de escritura en Releases.
+#    Linux/macOS:
+export GH_TOKEN="tu_token"
+#    Windows PowerShell:
+$env:GH_TOKEN = "tu_token"
 
-# 2. Subir versión en package.json
+# 2. Subir la versión en package.json (es la fuente única de versión)
 
-# 3. Build + publicar en GitHub Releases
-npm run dist
+# 3. Build + publicar en GitHub Releases, usando el sistema anfitrión
+npm run dist:win       # Windows
+npm run dist:mac       # macOS
+npm run dist:linux     # Linux
 ```
 
-La app detecta automáticamente nuevas versiones al abrirse y muestra un modal con el changelog.
+La aplicación obtiene su versión instalada desde `app.getVersion()`, consulta GitHub Releases al abrirse y muestra un modal con el changelog. La consulta se omite en modo desarrollo.
+
+La compilación de macOS debe ejecutarse preferentemente en macOS, especialmente si se necesitan firma y notarización. `dist:all` no convierte Linux en un entorno de compilación macOS fiable; se recomienda publicar cada plataforma desde su sistema nativo o desde CI. En Linux, el auto-update se aplica al formato AppImage; los paquetes `.deb` se distribuyen para instalación manual.
+
+El updater requiere que GitHub Release publique los metadatos generados por `electron-builder` (`latest.yml`, `latest-mac.yml` o `latest-linux.yml`, según corresponda) junto con los instaladores.
 
 ---
 
