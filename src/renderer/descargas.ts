@@ -227,14 +227,12 @@ export function renderDescargasPage(
         passwordInput.addEventListener('input', hideLoginError);
     }
 
-    /**
-     * Auto-scroll inteligente: solo hace scroll al fondo si el usuario
-     * ya estaba cerca del fondo. Si el usuario scrolleó hacia arriba
-     * para leer historial, respetamos su posición. Marcamos visualmente
-     * el contenedor cuando el usuario se ha "despegado" del fondo.
-     */
-    function isScrolledToBottom(el: HTMLElement, threshold = 32): boolean {
-        return el.scrollHeight - el.clientHeight - el.scrollTop <= threshold;
+    function scrollLogToBottom() {
+        if (!activityLog) return;
+        activityLog.scrollTop = activityLog.scrollHeight;
+        requestAnimationFrame(() => {
+            activityLog.scrollTop = activityLog.scrollHeight;
+        });
     }
 
     function updateLogUI() {
@@ -246,10 +244,6 @@ export function renderDescargasPage(
     }
 
     function log(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
-        // Si el usuario está cerca del fondo, mantenemos el auto-scroll.
-        // Si scrolleó hacia arriba, NO lo movemos para respetar su lectura.
-        const shouldStickToBottom = isScrolledToBottom(activityLog);
-
         const now = new Date().toLocaleTimeString();
         const entry = document.createElement('div');
         entry.className = `log-entry log-${type}`;
@@ -257,17 +251,7 @@ export function renderDescargasPage(
         activityLog.appendChild(entry);
 
         updateLogUI();
-
-        if (shouldStickToBottom) {
-            // Forzar el siguiente frame para que el scrollTop se aplique
-            // después de que el browser haya calculado el nuevo scrollHeight.
-            requestAnimationFrame(() => {
-                activityLog.scrollTop = activityLog.scrollHeight;
-                activityLog.removeAttribute('data-user-scrolled');
-            });
-        } else {
-            activityLog.setAttribute('data-user-scrolled', 'true');
-        }
+        scrollLogToBottom();
     }
 
     function clearLog() {
@@ -317,16 +301,6 @@ export function renderDescargasPage(
     // Wire up log panel buttons
     if (clearLogBtn) clearLogBtn.addEventListener('click', clearLog);
     if (copyLogBtn) copyLogBtn.addEventListener('click', copyLog);
-
-    // Detectar scroll manual del usuario para mostrar/ocultar el indicador
-    // "user-scrolled". Se usa para futuros refinamientos del auto-scroll.
-    activityLog.addEventListener('scroll', () => {
-        if (isScrolledToBottom(activityLog)) {
-            activityLog.removeAttribute('data-user-scrolled');
-        } else {
-            activityLog.setAttribute('data-user-scrolled', 'true');
-        }
-    });
 
     updateLogUI();
 
@@ -402,6 +376,7 @@ export function renderDescargasPage(
                 document.getElementById('coursesSection')!.style.display = 'flex';
                 document.getElementById('downloadSidebar')!.style.display = 'flex';
                 document.querySelector('.page-scroll')?.classList.add('descargas-expanded');
+                scrollLogToBottom();
                 await loadCourses();
             } else {
                 const msg = formatLoginError(result.message || 'Credenciales incorrectas. Verifique su usuario y contraseña.');
