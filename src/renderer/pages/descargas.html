@@ -30,14 +30,21 @@
                 <!-- Login Section -->
                 <div id="loginSection" class="login-section">
                     <div class="input-group"
-                        style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; max-width: 300px; margin-left: auto; margin-right: auto;">
+                        style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; max-width: 320px; margin-left: auto; margin-right: auto;">
+                        <div class="alert alert-danger" id="loginErrorAlert" style="display: none;" role="alert">
+                            <span class="alert-icon">⚠️</span>
+                            <div class="alert-content">
+                                <div class="alert-title">Error de inicio de sesión</div>
+                                <div class="alert-message" id="loginErrorMessage">Credenciales incorrectas.</div>
+                            </div>
+                        </div>
                         <div class="input-wrapper">
                             <label class="input-label" for="loginUsername">Usuario</label>
-                            <input type="text" id="loginUsername" placeholder="Nombre de usuario" class="input-field">
+                            <input type="text" id="loginUsername" placeholder="Nombre de usuario" class="input-field" autocomplete="username">
                         </div>
                         <div class="input-wrapper">
                             <label class="input-label" for="loginPassword">Contraseña</label>
-                            <input type="password" id="loginPassword" placeholder="Contraseña" class="input-field">
+                            <input type="password" id="loginPassword" placeholder="Contraseña" class="input-field" autocomplete="current-password">
                         </div>
                     </div>
                     <div class="action-buttons-center">

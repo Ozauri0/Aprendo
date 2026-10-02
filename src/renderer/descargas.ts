@@ -38,14 +38,21 @@ export function renderDescargasPage(
                             <p class="section-description">Ingresa tus credenciales de Aprendo UCT para comenzar</p>
                         </div>
                         <div class="descargas-login-form">
-                            <div class="input-group" style="display: flex; flex-direction: column; gap: 15px; max-width: 350px; margin: 0 auto;">
+                            <div class="input-group" style="display: flex; flex-direction: column; gap: 15px; max-width: 380px; margin: 0 auto; width: 100%;">
+                                <div class="alert alert-danger" id="loginErrorAlert" style="display: none; margin-bottom: 0;" role="alert">
+                                    <span class="alert-icon">${getIcon('alert-circle', 18)}</span>
+                                    <div class="alert-content">
+                                        <div class="alert-title">Error al iniciar sesión</div>
+                                        <div class="alert-message" id="loginErrorMessage">Credenciales incorrectas.</div>
+                                    </div>
+                                </div>
                                 <div class="input-wrapper">
                                     <label class="input-label" for="loginUsername">${getIcon('user', 16)} Usuario</label>
-                                    <input type="text" id="loginUsername" placeholder="Nombre de usuario" class="input-field">
+                                    <input type="text" id="loginUsername" placeholder="Nombre de usuario" class="input-field" autocomplete="username">
                                 </div>
                                 <div class="input-wrapper">
                                     <label class="input-label" for="loginPassword">${getIcon('lock', 16)} Contraseña</label>
-                                    <input type="password" id="loginPassword" placeholder="Contraseña" class="input-field">
+                                    <input type="password" id="loginPassword" placeholder="Contraseña" class="input-field" autocomplete="current-password">
                                 </div>
                                 <button class="btn btn-primary btn-large" onclick="startLoginProcess()" id="loginBtn" style="width: 100%;">
                                     ${getIcon('log-in', 18)} Iniciar Sesión
@@ -58,9 +65,14 @@ export function renderDescargasPage(
                         <div class="descargas-courses-header">
                             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                                 <h2>${getIcon('book-open', 20)} Cursos Disponibles</h2>
-                                <div class="status-display status-idle" id="statusDisplay" role="status" aria-live="polite">
-                                    <span class="status-icon">${getIcon('info', 18)}</span>
-                                    <span class="status-text">Listo</span>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="status-display status-idle" id="statusDisplay" role="status" aria-live="polite">
+                                        <span class="status-icon">${getIcon('info', 18)}</span>
+                                        <span class="status-text">Listo</span>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="logoutSession()" id="logoutBtn" title="Cerrar sesión">
+                                        ${getIcon('log-out', 14)} Salir
+                                    </button>
                                 </div>
                             </div>
                             <div class="descargas-search-row">
@@ -172,6 +184,7 @@ export function renderDescargasPage(
     (window as any).navigate = navigate;
     (window as any).goBack = () => navigate('home');
     (window as any).startLoginProcess = startLoginProcess;
+    (window as any).logoutSession = logoutSession;
     (window as any).startDownloadLoop = startDownloadLoop;
     (window as any).startLogDownloadLoop = startLogDownloadLoop;
     (window as any).startAttendanceDownloadLoop = startAttendanceDownloadLoop;
@@ -184,6 +197,35 @@ export function renderDescargasPage(
     (window as any).prevPage = prevPage;
     (window as any).clearActivityLog = clearLog;
     setupTitleBarActions();
+
+    const usernameInput = document.getElementById('loginUsername') as HTMLInputElement;
+    const passwordInput = document.getElementById('loginPassword') as HTMLInputElement;
+    const hideLoginError = () => {
+        const alert = document.getElementById('loginErrorAlert');
+        if (alert && alert.style.display !== 'none') {
+            alert.style.display = 'none';
+        }
+    };
+    if (usernameInput) {
+        usernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (!passwordInput?.value) {
+                    passwordInput?.focus();
+                } else {
+                    startLoginProcess();
+                }
+            }
+        });
+        usernameInput.addEventListener('input', hideLoginError);
+    }
+    if (passwordInput) {
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                startLoginProcess();
+            }
+        });
+        passwordInput.addEventListener('input', hideLoginError);
+    }
 
     /**
      * Auto-scroll inteligente: solo hace scroll al fondo si el usuario
@@ -298,40 +340,125 @@ export function renderDescargasPage(
         statusDisplay.className = `status-display status-${type}`;
     }
 
+    function formatLoginError(rawMsg: string): string {
+        if (!rawMsg) return 'Credenciales incorrectas. Verifique su usuario y contraseña.';
+        const lower = rawMsg.toLowerCase();
+        if (
+            lower.includes('invalid login') ||
+            lower.includes('please try again') ||
+            lower.includes('acceso inválido') ||
+            lower.includes('datos erróneos') ||
+            lower.includes('invalid credentials')
+        ) {
+            return 'Acceso inválido. Por favor, revise su usuario y contraseña e inténtelo de nuevo.';
+        }
+        if (lower.includes('username') && (lower.includes('password') || lower.includes('incorrect') || lower.includes('wrong'))) {
+            return 'Nombre de usuario o contraseña incorrectos. Por favor, inténtelo de nuevo.';
+        }
+        if (lower.includes('session expired') || lower.includes('sesión expirada')) {
+            return 'La sesión ha expirado. Por favor, inicie sesión nuevamente.';
+        }
+        if (lower.includes('cookies must be enabled') || lower.includes('cookies')) {
+            return 'Las cookies deben estar habilitadas en el navegador.';
+        }
+        if (lower.includes('too many login attempts') || lower.includes('account locked')) {
+            return 'Demasiados intentos fallidos. Su cuenta podría estar temporalmente bloqueada.';
+        }
+        return rawMsg;
+    }
+
     async function startLoginProcess() {
         const usernameInput = document.getElementById('loginUsername') as HTMLInputElement;
         const passwordInput = document.getElementById('loginPassword') as HTMLInputElement;
         const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
-        const username = usernameInput.value;
-        const password = passwordInput.value;
+        const loginErrorAlert = document.getElementById('loginErrorAlert') as HTMLDivElement;
+        const loginErrorMessage = document.getElementById('loginErrorMessage') as HTMLDivElement;
+
+        const username = usernameInput?.value.trim() || '';
+        const password = passwordInput?.value || '';
+
+        if (loginErrorAlert) loginErrorAlert.style.display = 'none';
 
         if (!username || !password) {
-            updateStatus('Por favor ingrese usuario y contraseña', 'warning');
+            if (loginErrorAlert && loginErrorMessage) {
+                loginErrorMessage.textContent = 'Por favor ingrese su nombre de usuario y contraseña.';
+                loginErrorAlert.style.display = 'flex';
+            }
+            if (!username) usernameInput?.focus();
+            else passwordInput?.focus();
             return;
         }
 
         loginBtn.disabled = true;
+        loginBtn.innerHTML = `<span class="btn-spinner">${getIcon('loader', 18)}</span> Conectando...`;
         updateStatus('Iniciando proceso de login...', 'processing');
 
         try {
             const result = await window.aprendoAPI.loginAprendo(username, password);
             if (result.success) {
                 updateStatus('Sesión iniciada', 'success');
+                if (loginErrorAlert) loginErrorAlert.style.display = 'none';
                 document.getElementById('loginSection')!.style.display = 'none';
                 document.getElementById('coursesSection')!.style.display = 'flex';
                 document.getElementById('downloadSidebar')!.style.display = 'flex';
                 document.querySelector('.page-scroll')?.classList.add('descargas-expanded');
                 await loadCourses();
             } else {
-                log(`Error: ${result.message}`, 'error');
+                const msg = formatLoginError(result.message || 'Credenciales incorrectas. Verifique su usuario y contraseña.');
+                log(`Error: ${msg}`, 'error');
                 updateStatus('Error en el proceso', 'error');
+
+                if (loginErrorAlert && loginErrorMessage) {
+                    loginErrorMessage.textContent = msg;
+                    loginErrorAlert.style.display = 'flex';
+                }
+
+                if (passwordInput) {
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
             }
         } catch (error: any) {
-            log(`Error: ${error.message}`, 'error');
+            const msg = formatLoginError(error?.message || 'Error inesperado durante el inicio de sesión.');
+            log(`Error: ${msg}`, 'error');
             updateStatus('Error en el proceso', 'error');
+
+            if (loginErrorAlert && loginErrorMessage) {
+                loginErrorMessage.textContent = msg;
+                loginErrorAlert.style.display = 'flex';
+            }
+
+            if (passwordInput) {
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
         } finally {
             loginBtn.disabled = false;
+            loginBtn.innerHTML = `${getIcon('log-in', 18)} Iniciar Sesión`;
         }
+    }
+
+    async function logoutSession() {
+        try {
+            if (window.aprendoAPI?.logoutAprendo) {
+                await window.aprendoAPI.logoutAprendo();
+            }
+        } catch { /* ignore */ }
+
+        document.getElementById('coursesSection')!.style.display = 'none';
+        document.getElementById('downloadSidebar')!.style.display = 'none';
+        document.querySelector('.page-scroll')?.classList.remove('descargas-expanded');
+        document.getElementById('loginSection')!.style.display = 'block';
+
+        const loginErrorAlert = document.getElementById('loginErrorAlert') as HTMLDivElement;
+        if (loginErrorAlert) loginErrorAlert.style.display = 'none';
+
+        const passwordInput = document.getElementById('loginPassword') as HTMLInputElement;
+        if (passwordInput) passwordInput.value = '';
+        const usernameInput = document.getElementById('loginUsername') as HTMLInputElement;
+        if (usernameInput) usernameInput.focus();
+
+        updateStatus('Sesión cerrada', 'info');
     }
 
     async function loadCourses() {
@@ -344,7 +471,7 @@ export function renderDescargasPage(
                 currentPage = 1;
                 renderPagedCourses();
             } else {
-                log('No se pudieron cargar los cursos.', 'warning');
+                log(result.message || 'No se pudieron cargar los cursos.', 'warning');
             }
         } catch (e: any) {
             log(`Error cargando cursos: ${e.message}`, 'error');

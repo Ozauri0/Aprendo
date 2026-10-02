@@ -335,6 +335,33 @@ function sendStatus(webContents: WebContents, text: string, type: 'info' | 'succ
   webContents.send('puppeteer:status', { text, type });
 }
 
+function translateErrorMessage(msg: string): string {
+  if (!msg) return 'Credenciales incorrectas. Verifique su usuario y contraseña.';
+  const lower = msg.toLowerCase();
+  if (
+    lower.includes('invalid login') ||
+    lower.includes('please try again') ||
+    lower.includes('acceso inválido') ||
+    lower.includes('datos erróneos') ||
+    lower.includes('invalid credentials')
+  ) {
+    return 'Acceso inválido. Por favor, revise su usuario y contraseña e inténtelo de nuevo.';
+  }
+  if (lower.includes('username') && (lower.includes('password') || lower.includes('incorrect') || lower.includes('wrong'))) {
+    return 'Nombre de usuario o contraseña incorrectos. Por favor, inténtelo de nuevo.';
+  }
+  if (lower.includes('session expired') || lower.includes('sesión expirada')) {
+    return 'La sesión ha expirado. Por favor, inicie sesión nuevamente.';
+  }
+  if (lower.includes('cookies must be enabled') || lower.includes('cookies')) {
+    return 'Las cookies deben estar habilitadas en el navegador.';
+  }
+  if (lower.includes('too many login attempts') || lower.includes('account locked')) {
+    return 'Demasiados intentos fallidos. Su cuenta podría estar temporalmente bloqueada.';
+  }
+  return msg;
+}
+
 async function launchAndLogin(username: string, password: string, webContents: WebContents): Promise<{ browser: Browser; page: Page }> {
   logToRenderer(webContents, 'Iniciando nueva sesión de navegador...', 'info');
   logger.info('puppeteer', `launchAndLogin: usuario="${username}"`);
@@ -388,7 +415,12 @@ async function launchAndLogin(username: string, password: string, webContents: W
       executablePath,
       headless: true,
       defaultViewport: null,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--start-maximized',
+        '--lang=es-CL,es-ES,es'
+      ]
     };
     browser = await puppeteer.launch(launchOpts);
     logger.info('puppeteer', 'Navegador lanzado OK');
@@ -405,34 +437,142 @@ async function launchAndLogin(username: string, password: string, webContents: W
   }
 
   const page = await browser.newPage();
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'es-CL,es;q=0.9,es-ES;q=0.8'
+  });
 
   try {
     logToRenderer(webContents, `Navegando a ${APRENDO_URL}...`, 'info');
     await page.goto(APRENDO_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    try {
-      await page.waitForSelector('#inputName', { timeout: 5000 });
+    // 1. Verificar si ya existe una sesión activa previa
+    const isAlreadyLoggedIn = await page.evaluate(() => {
+      const hasLogout = Boolean(document.querySelector('a[href*="logout.php"], .usermenu'));
+      const notLoggedInClass = document.body.classList.contains('notloggedin');
+      return hasLogout && !notLoggedInClass;
+    });
+
+    if (!isAlreadyLoggedIn) {
+      // 2. Localizar campos de inicio de sesión
+      let userInput = (await page.$('#inputName')) || (await page.$('#username'));
+      let passInput = (await page.$('#inputPassword')) || (await page.$('#password'));
+
+      if (!userInput || !passInput) {
+        try {
+          await page.waitForSelector('#inputName, #username', { timeout: 5000 });
+          userInput = (await page.$('#inputName')) || (await page.$('#username'));
+          passInput = (await page.$('#inputPassword')) || (await page.$('#password'));
+        } catch {
+          // Si no están en la portada, navegar directo a la página de autenticación de Moodle
+          logToRenderer(webContents, 'Accediendo a la página de autenticación...', 'info');
+          await page.goto('https://aprendo.uct.cl/login/index.php', { waitUntil: 'networkidle2', timeout: 30000 });
+          userInput = (await page.$('#username')) || (await page.$('#inputName'));
+          passInput = (await page.$('#password')) || (await page.$('#inputPassword'));
+        }
+      }
+
+      if (!userInput || !passInput) {
+        throw new Error('No se pudo encontrar el formulario de inicio de sesión en Aprendo UCT.');
+      }
+
       logToRenderer(webContents, 'Ingresando credenciales...', 'info');
-      await page.type('#inputName', username);
-      await page.type('#inputPassword', password);
+      // Limpiar y escribir usuario
+      await userInput.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await userInput.type(username);
+
+      // Limpiar y escribir contraseña
+      await passInput.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await passInput.type(password);
 
       logToRenderer(webContents, 'Enviando formulario...', 'info');
-      await page.keyboard.press('Enter');
-      await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    } catch (e) {
-      logToRenderer(webContents, 'Verificando sesión existente...', 'info');
+
+      // Enviar formulario (botón submit si existe o Enter)
+      const submitBtn = await page.$('#loginbtn, button[type="submit"], input[type="submit"]');
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => null),
+        submitBtn ? submitBtn.click() : page.keyboard.press('Enter')
+      ]);
+
+      // Esperar brevemente a que el DOM procese la navegación o el render de la sesión
+      try {
+        await page.waitForFunction(
+          () => Boolean(document.querySelector('a[href*="logout.php"], .usermenu, .userbutton, #login .alert-danger, .loginform .alert-danger, #loginerrors')),
+          { timeout: 8000 }
+        );
+      } catch {
+        await new Promise(r => setTimeout(r, 1200));
+      }
+
+      // 3. Evaluar el estado de autenticación tras enviar el formulario
+      const currentUrl = page.url();
+      const isLoginUrl = currentUrl.includes('/login/') || currentUrl.includes('loginredirect');
+
+      const authState = await page.evaluate(() => {
+        const hasLogout = Boolean(document.querySelector('a[href*="logout.php"], .usermenu, .userbutton'));
+        const hasNotLoggedIn = document.body.classList.contains('notloggedin');
+        const hasLoginForm = Boolean(document.querySelector('#inputName, #username'));
+        return {
+          isLoggedIn: hasLogout && !hasNotLoggedIn,
+          hasLogout,
+          hasNotLoggedIn,
+          hasLoginForm
+        };
+      });
+
+      // Si la sesión está activa y no estamos en la URL de login: ¡Login exitoso!
+      if (authState.isLoggedIn && !isLoginUrl) {
+        logToRenderer(webContents, '¡Sesión activa confirmada!', 'success');
+        return { browser, page };
+      }
+
+      // Si no estamos autenticados, buscar mensaje de error específico dentro del formulario de login
+      const moodleAlertText = await page.evaluate(() => {
+        // Buscar exclusivamente en contenedores del formulario de login de Moodle
+        const selectors = [
+          '#login .alert-danger',
+          '.loginform .alert-danger',
+          '.login-container .alert-danger',
+          '#loginerrors',
+          '.loginerrors'
+        ];
+        for (const sel of selectors) {
+          const el = document.querySelector(sel) as HTMLElement | null;
+          if (el && (el.offsetParent !== null || el.offsetHeight > 0)) {
+            const text = el.textContent?.trim();
+            if (text && !text.toLowerCase().includes('cookie') && !text.toLowerCase().includes('borrar')) {
+              return text;
+            }
+          }
+        }
+
+        // Fallback: dentro del contenedor <form id="login"> o .login-form
+        const loginForm = document.querySelector('#login, .login-form, .loginform');
+        if (loginForm) {
+          const alertInside = loginForm.querySelector('.alert-danger, .alert') as HTMLElement | null;
+          if (alertInside) {
+            const text = alertInside.textContent?.trim();
+            if (text && !text.toLowerCase().includes('cookie') && !text.toLowerCase().includes('borrar')) {
+              return text;
+            }
+          }
+        }
+
+        return null;
+      });
+
+      const rawError = moodleAlertText || 'Acceso inválido. Por favor, revise su usuario y contraseña.';
+      const failureMessage = translateErrorMessage(rawError);
+      logger.warn('puppeteer', `Fallo de inicio de sesión: "${failureMessage}" (URL: ${currentUrl})`);
+      logToRenderer(webContents, `Error: ${failureMessage}`, 'error');
+      throw new Error(failureMessage);
     }
 
-    const loginInputExists = await page.$('#inputName');
-
-    if (!loginInputExists) {
-      logToRenderer(webContents, '¡Sesión activa confirmada!', 'success');
-      return { browser, page };
-    } else {
-      throw new Error('Fallo en el inicio de sesión. Verifique credenciales.');
-    }
+    logToRenderer(webContents, '¡Sesión activa confirmada!', 'success');
+    return { browser, page };
   } catch (error) {
-    await browser.close();
+    try { await browser.close(); } catch { /* ignore */ }
     throw error;
   }
 }
@@ -534,10 +674,11 @@ async function startDownloadLoop(startId: number, endId: number, webContents: We
           logToRenderer(webContents, `   URL: ${currentUrl}`, 'warning');
           logToRenderer(webContents, `   Título: ${currentTitle}`, 'warning');
 
-          if (await page.$('#inputName') || currentTitle.includes('Log in') || currentTitle.includes('Entrar')) {
+          if (await page.$('#inputName, #username') || currentTitle.includes('Log in') || currentTitle.includes('Entrar') || currentUrl.includes('/login/')) {
             logToRenderer(webContents, '   Detectado formulario de login. Sesión perdida.', 'error');
             try { await browser.close(); } catch (e) { /* ignore */ }
             globalBrowser = null;
+            globalPage = null;
           }
           emptyCount++;
         }
@@ -642,10 +783,11 @@ async function startLogDownloadLoop(startId: number, endId: number, webContents:
         await page.goto(logUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
         const currentUrl = page.url();
-        if (currentUrl.includes('login') || await page.$('#inputName')) {
+        if (currentUrl.includes('/login/') || await page.$('#inputName, #username')) {
           logToRenderer(webContents, `   Sesión perdida para ID ${id}.`, 'error');
           try { await browser.close(); } catch (e) { /* ignore */ }
           globalBrowser = null;
+          globalPage = null;
           emptyCount++;
           continue;
         }
@@ -814,10 +956,12 @@ async function startAttendanceDownloadLoop(startId: number, endId: number, webCo
 
         await page.goto(courseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-        if (await page.$('#inputName')) {
+        const currentUrl = page.url();
+        if (currentUrl.includes('/login/') || await page.$('#inputName, #username')) {
           logToRenderer(webContents, `   Sesión perdida para ID ${id}.`, 'error');
           try { await browser.close(); } catch { /* ignore */ }
           globalBrowser = null;
+          globalPage = null;
           emptyCount++;
           continue;
         }
@@ -942,6 +1086,12 @@ export function registerDownloadHandlers() {
       globalPage = session.page;
       return { success: true, message: 'Sesión iniciada correctamente' };
     } catch (error: any) {
+      if (globalBrowser) {
+        try { await globalBrowser.close(); } catch (e) { /* ignore */ }
+        globalBrowser = null;
+        globalPage = null;
+      }
+      currentCredentials = { username: '', password: '' };
       return { success: false, message: error.message };
     }
   });
@@ -976,6 +1126,11 @@ export function registerDownloadHandlers() {
       if (!page) return { success: false, message: 'No hay sesión activa.' };
 
       await page.goto('https://aprendo.uct.cl/my/', { waitUntil: 'networkidle2', timeout: 30000 });
+
+      const currentUrl = page.url();
+      if (currentUrl.includes('/login/') || await page.$('#inputName, #username')) {
+        return { success: false, message: 'Sesión no autenticada o expirada.' };
+      }
 
       const courses = await page.$$eval('.coursebox, .course_listitem, .dashboard-card, .card.dashboard-card', (els: Element[]) =>
         els.map((el: Element) => {
@@ -1027,5 +1182,15 @@ export function registerDownloadHandlers() {
   ipcMain.handle('puppeteer:stop', async () => {
     shouldStop = true;
     return { success: true, message: 'Detención solicitada' };
+  });
+
+  ipcMain.handle('puppeteer:logout', async () => {
+    if (globalBrowser) {
+      try { await globalBrowser.close(); } catch { /* ignore */ }
+      globalBrowser = null;
+      globalPage = null;
+    }
+    currentCredentials = { username: '', password: '' };
+    return { success: true, message: 'Sesión cerrada correctamente' };
   });
 }

@@ -1834,7 +1834,38 @@ main {
 }
 
 .spinning {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: 50% 50%;
     animation: spin 1s linear infinite;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.spinning svg {
+    display: block;
+    transform-origin: 50% 50%;
+}
+
+.btn-spinner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    animation: spin 1s linear infinite;
+    transform-origin: 50% 50%;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.btn-spinner svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    transform-origin: 50% 50%;
 }
 
 /* ================= UTILIDADES ================= */

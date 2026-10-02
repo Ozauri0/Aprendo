@@ -13,6 +13,9 @@ const api = {
   loginAprendo: (username: string, password: string) =>
     ipcRenderer.invoke('puppeteer:login', username, password),
 
+  logoutAprendo: () =>
+    ipcRenderer.invoke('puppeteer:logout'),
+
   startDownloads: (args: import('../shared/types').DownloadStartArgs) =>
     ipcRenderer.invoke('puppeteer:download', args),
 
