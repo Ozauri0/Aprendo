@@ -151,7 +151,7 @@ Configuración en **Configuración** (`includeSectionHeader`, default `true`, pe
 En todos los archivos consolidados se añade la columna **`Curso`** como la **primera columna** (columna A, antes del nombre/apellido del alumno):
 - Helper: `extractCourseKey(input)` en `shared-utils.ts` (retorna ej. `PAT_2026_01`, `PAT_01`, `Curso_01`).
 - **Calificaciones**: Columna 1 `Curso` con el identificador del curso para cada alumno, seguida de las columnas de Moodle (`Nombre`, `Apellido`, etc.).
-- **Asistencia**: Encabezado con `Curso` antes de `Apellido`/`Nombre` y cada fila de alumno con el valor del curso al que pertenece en todos los modos de consolidación (`separate`, `course_single`, `all_single`).
+- **Asistencia**: Encabezado con `Curso` y `Tipo de Asistencia` antes de `Apellido`/`Nombre`. Cada fila de alumno incluye el valor del curso y el módulo correspondiente (ej. `GESTIÓN PERSONAL`, `ESCRITURA ACADÉMICA`, `PENSAMIENTO MATEMÁTICO`) en todos los modos de consolidación (`separate`, `course_single`, `all_single`).
 - **Informes/Logs**: Columna 1 `Curso` con el identificador del curso correspondiente a cada registro de actividad.
 
 ### Estado de Migración

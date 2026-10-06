@@ -1,6 +1,6 @@
 {
   "name": "neo-aprendo",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Reescritura de Aprendo en Electron + TypeScript",
   "main": "dist/main/main.js",
   "scripts": {

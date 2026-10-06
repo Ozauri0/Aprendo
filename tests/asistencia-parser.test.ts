@@ -189,16 +189,15 @@ describe('groupFilesByCourse', () => {
 // ==================== addCourseColumnToAttendance ====================
 function findHeaderRow(rows: any[][]): number {
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    const firstCell = String(rows[i][0] || '').toLowerCase();
-    const secondCell = String(rows[i][1] || '').toLowerCase();
-    if (firstCell.includes('apellido') || (firstCell === 'curso' && secondCell.includes('apellido'))) {
+    const rowStrings = (rows[i] || []).slice(0, 4).map(c => String(c || '').toLowerCase());
+    if (rowStrings.some(c => c.includes('apellido'))) {
       return i + 1;
     }
   }
   return 0;
 }
 
-function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] {
+function addCourseColumnToAttendance(rows: any[][], courseKey: string, attendanceType?: string): any[][] {
   const headerRow = findHeaderRow(rows);
   if (headerRow === 0) return rows;
 
@@ -206,11 +205,39 @@ function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] 
     if (idx < headerRow - 1) {
       return row;
     } else if (idx === headerRow - 1) {
-      if (row[0] === 'Curso') return row;
-      return ['Curso', ...row];
+      const hasCourse = row[0] === 'Curso';
+      const hasType = hasCourse ? row[1] === 'Tipo de Asistencia' : row[0] === 'Tipo de Asistencia';
+
+      if (hasCourse && (!attendanceType || hasType)) {
+        return row;
+      }
+
+      if (hasCourse) {
+        return ['Curso', 'Tipo de Asistencia', ...row.slice(1)];
+      }
+
+      if (attendanceType) {
+        return ['Curso', 'Tipo de Asistencia', ...row];
+      } else {
+        return ['Curso', ...row];
+      }
     } else {
-      if (row[0] === courseKey) return row;
-      return [courseKey, ...row];
+      const hasCourse = row[0] === courseKey;
+      const hasType = hasCourse ? row[1] === attendanceType : false;
+
+      if (hasCourse && (!attendanceType || hasType)) {
+        return row;
+      }
+
+      if (hasCourse) {
+        return [courseKey, attendanceType || '', ...row.slice(1)];
+      }
+
+      if (attendanceType) {
+        return [courseKey, attendanceType, ...row];
+      } else {
+        return [courseKey, ...row];
+      }
     }
   });
 }
@@ -250,5 +277,41 @@ describe('addCourseColumnToAttendance', () => {
     const result = addCourseColumnToAttendance(rawRows, 'PAT_2026_01');
     expect(result[0]).toEqual(['Curso', 'Apellido', 'Nombre']);
     expect(result[1]).toEqual(['PAT_2026_01', 'Acuña', 'María']);
+  });
+
+  test('antepone Curso y Tipo de Asistencia cuando se especifica el tipo', () => {
+    const rawRows = [
+      ['Curso: PAT 2026 01'],
+      ['Grupo: Todos los participantes'],
+      [],
+      ['Apellido', 'Nombre', 'Número de ID', 'Dirección de correo', '01 Mar'],
+      ['Acuña', 'María', '20123456-7', 'macuna@alu.uct.cl', 'P'],
+      ['Barrientos', 'Carlos', '19876543-2', 'cbarrientos@alu.uct.cl', 'P'],
+    ];
+
+    const result = addCourseColumnToAttendance(rawRows, 'PAT_2026_01', 'GESTIÓN PERSONAL');
+
+    // Metadatos intactos
+    expect(result[0]).toEqual(['Curso: PAT 2026 01']);
+    expect(result[1]).toEqual(['Grupo: Todos los participantes']);
+    expect(result[2]).toEqual([]);
+
+    // Encabezado con 'Curso' y 'Tipo de Asistencia'
+    expect(result[3]).toEqual(['Curso', 'Tipo de Asistencia', 'Apellido', 'Nombre', 'Número de ID', 'Dirección de correo', '01 Mar']);
+
+    // Filas con curso y módulo
+    expect(result[4]).toEqual(['PAT_2026_01', 'GESTIÓN PERSONAL', 'Acuña', 'María', '20123456-7', 'macuna@alu.uct.cl', 'P']);
+    expect(result[5]).toEqual(['PAT_2026_01', 'GESTIÓN PERSONAL', 'Barrientos', 'Carlos', '19876543-2', 'cbarrientos@alu.uct.cl', 'P']);
+  });
+
+  test('no duplica Curso ni Tipo de Asistencia si ya fueron agregados', () => {
+    const rawRows = [
+      ['Curso', 'Tipo de Asistencia', 'Apellido', 'Nombre'],
+      ['PAT_2026_01', 'ESCRITURA ACADÉMICA', 'Acuña', 'María'],
+    ];
+
+    const result = addCourseColumnToAttendance(rawRows, 'PAT_2026_01', 'ESCRITURA ACADÉMICA');
+    expect(result[0]).toEqual(['Curso', 'Tipo de Asistencia', 'Apellido', 'Nombre']);
+    expect(result[1]).toEqual(['PAT_2026_01', 'ESCRITURA ACADÉMICA', 'Acuña', 'María']);
   });
 });
