@@ -482,7 +482,7 @@ async function generateCourseWorkbook(group: CourseGroup): Promise<ConsolidatedC
 
     for (const mod of sortedModules) {
         const rawRows = await readAttendanceFile(mod.file);
-        const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
+        const rows = addCourseColumnToAttendance(rawRows, group.courseKey, mod.moduleName);
         const sheetName = uniqueSheetName(sanitizeSheetName(mod.moduleName), usedSheetNames);
         usedSheetNames.add(sheetName.toLowerCase());
         moduleNames.push(sheetName);
@@ -560,7 +560,7 @@ async function generateCourseWorkbookSingleSheet(group: CourseGroup): Promise<Co
 
     for (const mod of sortedModules) {
         const rawRows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
-        const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
+        const rows = addCourseColumnToAttendance(rawRows, group.courseKey, mod.moduleName);
         moduleNames.push(mod.moduleName);
 
         const headerRow = findHeaderRow(rows);
@@ -622,7 +622,7 @@ async function generateAllInOneWorkbook(groups: CourseGroup[], results: any): Pr
             for (const mod of sortedModules) {
                 try {
                     const rawRows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
-                    const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
+                    const rows = addCourseColumnToAttendance(rawRows, group.courseKey, mod.moduleName);
                     const headerRow = findHeaderRow(rows);
                     studentCount += headerRow > 0 ? Math.max(0, rows.length - headerRow) : 0;
 
@@ -744,8 +744,8 @@ function normalizeCellValue(value: any): any {
     return value;
 }
 
-// Agrega la columna 'Curso' al inicio antes del nombre del alumno (antes de Apellido/Nombre)
-function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] {
+// Agrega las columnas 'Curso' y 'Tipo de Asistencia' al inicio antes del nombre del alumno (antes de Apellido/Nombre)
+function addCourseColumnToAttendance(rows: any[][], courseKey: string, attendanceType?: string): any[][] {
     const headerRow = findHeaderRow(rows); // 1-indexed
     if (headerRow === 0) return rows;
 
@@ -754,23 +754,50 @@ function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] 
             // Filas de metadatos (Curso/Grupo) o vacías
             return row;
         } else if (idx === headerRow - 1) {
-            // Fila de encabezados: 'Curso' al inicio antes de Apellido/Nombre
-            if (row[0] === 'Curso') return row;
-            return ['Curso', ...row];
+            // Fila de encabezados
+            const hasCourse = row[0] === 'Curso';
+            const hasType = hasCourse ? row[1] === 'Tipo de Asistencia' : row[0] === 'Tipo de Asistencia';
+
+            if (hasCourse && (!attendanceType || hasType)) {
+                return row;
+            }
+
+            if (hasCourse) {
+                return ['Curso', 'Tipo de Asistencia', ...row.slice(1)];
+            }
+
+            if (attendanceType) {
+                return ['Curso', 'Tipo de Asistencia', ...row];
+            } else {
+                return ['Curso', ...row];
+            }
         } else {
-            // Filas de alumnos: valor del curso al inicio
-            if (row[0] === courseKey) return row;
-            return [courseKey, ...row];
+            // Filas de alumnos: valor del curso y tipo de asistencia al inicio
+            const hasCourse = row[0] === courseKey;
+            const hasType = hasCourse ? row[1] === attendanceType : false;
+
+            if (hasCourse && (!attendanceType || hasType)) {
+                return row;
+            }
+
+            if (hasCourse) {
+                return [courseKey, attendanceType || '', ...row.slice(1)];
+            }
+
+            if (attendanceType) {
+                return [courseKey, attendanceType, ...row];
+            } else {
+                return [courseKey, ...row];
+            }
         }
     });
 }
 
-// Detectar la fila de encabezados (la que contiene "Apellido" en la primera o segunda celda si ya tiene "Curso")
+// Detectar la fila de encabezados (la que contiene "Apellido")
 function findHeaderRow(rows: any[][]): number {
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
-        const firstCell = String(rows[i][0] || '').toLowerCase();
-        const secondCell = String(rows[i][1] || '').toLowerCase();
-        if (firstCell.includes('apellido') || (firstCell === 'curso' && secondCell.includes('apellido'))) {
+        const rowStrings = (rows[i] || []).slice(0, 4).map(c => String(c || '').toLowerCase());
+        if (rowStrings.some(c => c.includes('apellido'))) {
             return i + 1; // 1-indexed para ExcelJS
         }
     }
