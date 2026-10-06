@@ -51,7 +51,7 @@ jest.mock('electron', () => ({
   ipcRenderer: { send: jest.fn() },
 }), { virtual: true });
 
-import { formatFileSize, logMessage, clearLog, updateProgress } from '../src/renderer/shared-utils';
+import { formatFileSize, logMessage, clearLog, updateProgress, formatSectionHeaderName, extractCourseKey } from '../src/renderer/shared-utils';
 
 // ==================== formatFileSize ====================
 describe('formatFileSize', () => {
@@ -150,5 +150,107 @@ describe('updateProgress', () => {
   test('total 0 no divide por cero', () => {
     updateProgress(0, 0, 'Sin datos');
     expect(progressFill.style.width).toBe('0%');
+  });
+});
+
+// ==================== formatSectionHeaderName ====================
+describe('formatSectionHeaderName', () => {
+  test('patrón PAT con año y dos dígitos: PAT_2026_01.xlsx', () => {
+    expect(formatSectionHeaderName('PAT_2026_01.xlsx', 'Calificaciones')).toBe('PAT_2026_01_Calificaciones');
+  });
+
+  test('patrón PAT con año y un dígito normalizado con padStart: PAT_2026_1', () => {
+    expect(formatSectionHeaderName('PAT_2026_1', 'Calificaciones')).toBe('PAT_2026_01_Calificaciones');
+  });
+
+  test('patrón PAT con espacio y sufijo: PAT_2026_01 Calificaciones.xlsx', () => {
+    expect(formatSectionHeaderName('PAT_2026_01 Calificaciones.xlsx', 'Calificaciones')).toBe('PAT_2026_01_Calificaciones');
+  });
+
+  test('patrón PAT para logs: PAT_2026_01 Logs.xlsx', () => {
+    expect(formatSectionHeaderName('PAT_2026_01 Logs.xlsx', 'Logs')).toBe('PAT_2026_01_Logs');
+  });
+
+  test('patrón logs export Moodle: logs_PAT_2026_01_20260315-1200.xlsx', () => {
+    expect(formatSectionHeaderName('logs_PAT_2026_01_20260315-1200.xlsx', 'Logs')).toBe('PAT_2026_01_Logs');
+  });
+
+  test('patrón asistencia: PAT_2026_01_Asistencias Asistencia GESTIÓN.xlsx', () => {
+    expect(formatSectionHeaderName('PAT_2026_01_Asistencias Asistencia GESTIÓN.xlsx', 'Asistencias')).toBe('PAT_2026_01_Asistencias');
+  });
+
+  test('patrón PAT sin año: PAT_01.xlsx', () => {
+    expect(formatSectionHeaderName('PAT_01.xlsx', 'Calificaciones')).toBe('PAT_01_Calificaciones');
+  });
+
+  test('patrón PAT sin año de un dígito: PAT_1', () => {
+    expect(formatSectionHeaderName('PAT_1', 'Calificaciones')).toBe('PAT_01_Calificaciones');
+  });
+
+  test('patrón Curso_NN: Curso_1.xlsx', () => {
+    expect(formatSectionHeaderName('Curso_1.xlsx', 'Calificaciones')).toBe('Curso_01_Calificaciones');
+  });
+
+  test('patrón Curso con espacio: Curso 02', () => {
+    expect(formatSectionHeaderName('Curso 02', 'Calificaciones')).toBe('Curso_02_Calificaciones');
+  });
+
+  test('fallback nombre genérico: Biologia_01.xlsx', () => {
+    expect(formatSectionHeaderName('Biologia_01.xlsx', 'Calificaciones')).toBe('Biologia_01_Calificaciones');
+  });
+
+  test('fallback Sin_Curso para asistencias', () => {
+    expect(formatSectionHeaderName('Sin_Curso', 'Asistencias')).toBe('Sin_Curso_Asistencias');
+  });
+
+  test('string vacío retorna el tipo', () => {
+    expect(formatSectionHeaderName('', 'Calificaciones')).toBe('Calificaciones');
+  });
+});
+
+// ==================== extractCourseKey ====================
+describe('extractCourseKey', () => {
+  test('patrón PAT con año y dos dígitos: PAT_2026_01.xlsx', () => {
+    expect(extractCourseKey('PAT_2026_01.xlsx')).toBe('PAT_2026_01');
+  });
+
+  test('patrón PAT con año y un dígito: PAT_2026_1', () => {
+    expect(extractCourseKey('PAT_2026_1')).toBe('PAT_2026_01');
+  });
+
+  test('patrón PAT con espacios y sufijos: PAT_2026_01 Calificaciones.xlsx', () => {
+    expect(extractCourseKey('PAT_2026_01 Calificaciones.xlsx')).toBe('PAT_2026_01');
+  });
+
+  test('patrón logs: PAT_2026_01 Logs.xlsx', () => {
+    expect(extractCourseKey('PAT_2026_01 Logs.xlsx')).toBe('PAT_2026_01');
+  });
+
+  test('patrón logs Moodle: logs_PAT_2026_01_20260315-1200.xlsx', () => {
+    expect(extractCourseKey('logs_PAT_2026_01_20260315-1200.xlsx')).toBe('PAT_2026_01');
+  });
+
+  test('patrón asistencia: PAT_2026_01_Asistencias Asistencia GESTIÓN.xlsx', () => {
+    expect(extractCourseKey('PAT_2026_01_Asistencias Asistencia GESTIÓN.xlsx')).toBe('PAT_2026_01');
+  });
+
+  test('patrón PAT sin año: PAT_01.xlsx', () => {
+    expect(extractCourseKey('PAT_01.xlsx')).toBe('PAT_01');
+  });
+
+  test('patrón PAT sin año de un dígito: PAT_1', () => {
+    expect(extractCourseKey('PAT_1')).toBe('PAT_01');
+  });
+
+  test('patrón Curso_NN: Curso_1.xlsx', () => {
+    expect(extractCourseKey('Curso_1.xlsx')).toBe('Curso_01');
+  });
+
+  test('fallback nombre genérico: Biologia_01.xlsx', () => {
+    expect(extractCourseKey('Biologia_01.xlsx')).toBe('Biologia_01');
+  });
+
+  test('string vacío retorna string vacío', () => {
+    expect(extractCourseKey('')).toBe('');
   });
 });

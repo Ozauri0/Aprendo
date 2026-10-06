@@ -551,7 +551,7 @@
     font-family: var(--font-mono);
     font-size: 0.8125rem;
     line-height: 1.7;
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
     border: 1px solid var(--border-color);
 }
 

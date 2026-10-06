@@ -92,3 +92,18 @@ export interface BatchSaveResult {
   cancelled?: boolean;
   errors?: string[];
 }
+
+// ================= AUTO-UPDATE =================
+export interface UpdateInfo {
+  version: string;
+  currentVersion: string;
+  releaseNotes?: string;
+  releaseDate?: string;
+}
+
+export interface UpdateProgress {
+  percent: number;
+  bytesPerSecond: number;
+  total: number;
+  transferred: number;
+}

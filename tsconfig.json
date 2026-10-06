@@ -12,7 +12,7 @@
     "noImplicitAny": false,
     "strict": false,
     "skipLibCheck": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "sourceMap": false
   },
   "include": ["src/**/*"],

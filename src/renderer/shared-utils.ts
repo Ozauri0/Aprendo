@@ -84,3 +84,57 @@ export function updateProgress(current: number, total: number, message: string):
     if (text) text.textContent = message;
     if (pct) pct.textContent = `${percent}%`;
 }
+
+/**
+ * Extrae el identificador del curso (ej: 'PAT_2026_01') a partir del nombre de archivo o clave.
+ */
+export function extractCourseKey(input: string): string {
+    if (!input) return '';
+    const base = input.replace(/\.xlsx?$/i, '').trim();
+
+    // 1. Patrón PAT_YYYY_NN (ej. PAT_2026_01, logs_PAT_2026_01, PAT-2026-1)
+    const fullMatch = base.match(/PAT[_\s-]?(\d{4})[_\s-]?0*(\d{1,3})(?!\d)/i);
+    if (fullMatch) {
+        const year = fullMatch[1];
+        const num = fullMatch[2].padStart(2, '0');
+        return `PAT_${year}_${num}`;
+    }
+
+    // 2. Patrón PAT_NN sin año (ej. PAT_01, PAT-1)
+    const shortMatch = base.match(/PAT[_\s-]?0*(\d{1,3})(?!\d)/i);
+    if (shortMatch) {
+        const num = shortMatch[1].padStart(2, '0');
+        return `PAT_${num}`;
+    }
+
+    // 3. Patrón Curso_NN (ej. Curso_1, Curso 02)
+    const courseMatch = base.match(/curso[_\s-]?0*(\d+)/i);
+    if (courseMatch) {
+        const num = courseMatch[1].padStart(2, '0');
+        return `Curso_${num}`;
+    }
+
+    // 4. Fallback genérico: limpiar menciones de notas/calificaciones/logs/asistencias
+    const clean = base
+        .replace(/[_\s-]+(notas|calificaciones|logs|informes|asistencias?)/gi, '')
+        .replace(/\s+/g, '_')
+        .trim();
+
+    return clean || 'Sin_Curso';
+}
+
+/**
+ * Genera el nombre de la sección para el encabezado de consolidación.
+ * Ejemplos:
+ *   formatSectionHeaderName('PAT_2026_01.xlsx', 'Calificaciones') -> 'PAT_2026_01_Calificaciones'
+ *   formatSectionHeaderName('PAT_2026_01 Logs.xlsx', 'Logs') -> 'PAT_2026_01_Logs'
+ *   formatSectionHeaderName('PAT_2026_01', 'Asistencias') -> 'PAT_2026_01_Asistencias'
+ */
+export function formatSectionHeaderName(
+    input: string,
+    type: 'Calificaciones' | 'Logs' | 'Asistencias'
+): string {
+    if (!input) return type;
+    const courseKey = extractCourseKey(input);
+    return courseKey ? `${courseKey}_${type}` : type;
+}

@@ -4,7 +4,7 @@ import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
 import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
-import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog, formatSectionHeaderName, extractCourseKey } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 // Variables globales
@@ -410,6 +410,7 @@ async function processExcelFilesReal() {
                 const sheetName = generateSheetName(file.name);
                 results.processedSheets.push({ 
                     sheetName, 
+                    fileName: file.name,
                     data: fileResult.data,
                     headers: fileResult.headers || Object.keys(fileResult.data[0] || {})
                 });
@@ -530,46 +531,140 @@ async function generateConsolidatedFileReal(results) {
         // Crear nuevo workbook
         const workbook = new ExcelJS.Workbook();
         
+        const consolidationMode = (window as any).configFilters?.getConsolidationMode?.() || 'separate';
+        const isSingleSheet = consolidationMode === 'single' || consolidationMode === 'all_single';
+        const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
         let sheetsCreated = 0;
         
-        // Crear una hoja por cada archivo procesado (manteniendo el orden)
-        results.processedSheets.forEach((sheetInfo) => {
-            const { sheetName, data, headers: originalHeaders } = sheetInfo;
-            if (data.length > 0) {
-                const worksheet = workbook.addWorksheet(sheetName);
-                
-                // Usar los headers originales del archivo, no solo los del primer registro
-                const headers = originalHeaders || Object.keys(data[0]);
-                
-                console.log(`Creando hoja ${sheetName} con columnas:`, headers);
-                
-                // Agregar headers
-                worksheet.addRow(headers);
-                
-                // Agregar datos
-                data.forEach(row => {
-                    const values = headers.map(header => row[header] || '');
-                    worksheet.addRow(values);
+        if (isSingleSheet) {
+            // MODO HOJA ÚNICA: Consolidar todos los cursos en una sola hoja continua
+            const worksheet = workbook.addWorksheet('Calificaciones Consolidadas');
+            
+            // Recopilar todos los encabezados únicos manteniendo el orden
+            const headerSet = new Set<string>();
+            results.processedSheets.forEach((sheetInfo: any) => {
+                const rawHeaders = sheetInfo.headers || (sheetInfo.data && sheetInfo.data.length > 0 ? Object.keys(sheetInfo.data[0]) : []);
+                rawHeaders.forEach((h: string) => {
+                    if (h && h !== 'Curso') {
+                        headerSet.add(h);
+                    }
                 });
-                
-                // Formatear la hoja
-                worksheet.getRow(1).font = { bold: true };
-                worksheet.getRow(1).fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFE0E0E0' }
-                };
-                
-                // Autoajustar columnas
-                headers.forEach((header, index) => {
-                    const column = worksheet.getColumn(index + 1);
-                    column.width = Math.max(header.length, 15);
-                });
-                
-                sheetsCreated++;
-                logMessage(`Hoja creada: ${sheetName} (${data.length} filas, ${headers.length} columnas)`, 'info');
+            });
+            
+            const headers = ['Curso', ...Array.from(headerSet)];
+            let headerRowIndex = 1;
+            let sectionHeaderName = '';
+            
+            if (includeSectionHeader) {
+                const sampleFileName = results.processedSheets[0]?.fileName || results.processedSheets[0]?.sheetName || '';
+                const allSameCourse = results.processedSheets.length === 1 ||
+                    results.processedSheets.every((s: any) => formatSectionHeaderName(s.fileName || s.sheetName, 'Calificaciones') === formatSectionHeaderName(sampleFileName, 'Calificaciones'));
+                sectionHeaderName = (allSameCourse && sampleFileName)
+                    ? formatSectionHeaderName(sampleFileName, 'Calificaciones')
+                    : 'Calificaciones_Consolidadas';
+                const sectionRow = worksheet.addRow([sectionHeaderName]);
+                sectionRow.font = { bold: true, size: 11 };
+                headerRowIndex = 2;
             }
-        });
+            
+            // Agregar headers
+            worksheet.addRow(headers);
+            
+            // Agregar datos de todos los cursos
+            let totalRows = 0;
+            results.processedSheets.forEach((sheetInfo: any) => {
+                const { sheetName, fileName, data } = sheetInfo;
+                const courseKey = extractCourseKey(fileName || sheetName);
+                if (data && data.length > 0) {
+                    data.forEach((row: any) => {
+                        const values = headers.map(header => {
+                            if (header === 'Curso') return courseKey;
+                            return row[header] !== undefined && row[header] !== null ? row[header] : '';
+                        });
+                        worksheet.addRow(values);
+                        totalRows++;
+                    });
+                }
+            });
+            
+            // Formatear la fila de encabezados
+            worksheet.getRow(headerRowIndex).font = { bold: true };
+            worksheet.getRow(headerRowIndex).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE0E0E0' }
+            };
+            
+            // Autoajustar columnas
+            headers.forEach((header, index) => {
+                const column = worksheet.getColumn(index + 1);
+                const minWidth = (index === 0 && includeSectionHeader && sectionHeaderName)
+                    ? Math.max(header.length, sectionHeaderName.length, 15)
+                    : Math.max(header.length, 15);
+                column.width = minWidth;
+            });
+            
+            if (totalRows > 0) {
+                sheetsCreated = 1;
+                logMessage(`Hoja consolidada única creada: Calificaciones Consolidadas (${totalRows} filas, ${headers.length} columnas)`, 'info');
+            }
+        } else {
+            // MODO HOJAS SEPARADAS: Crear una hoja por cada archivo procesado (manteniendo el orden)
+            results.processedSheets.forEach((sheetInfo) => {
+                const { sheetName, fileName, data, headers: originalHeaders } = sheetInfo;
+                if (data.length > 0) {
+                    const worksheet = workbook.addWorksheet(sheetName);
+                    
+                    // Usar los headers originales del archivo, anteponiendo la columna 'Curso'
+                    const rawHeaders = originalHeaders || Object.keys(data[0]);
+                    const courseKey = extractCourseKey(fileName || sheetName);
+                    const headers = ['Curso', ...rawHeaders.filter((h: string) => h !== 'Curso')];
+                    
+                    console.log(`Creando hoja ${sheetName} con columnas:`, headers);
+                    
+                    let headerRowIndex = 1;
+                    let sectionHeaderName = '';
+                    if (includeSectionHeader) {
+                        sectionHeaderName = formatSectionHeaderName(fileName || sheetName, 'Calificaciones');
+                        const sectionRow = worksheet.addRow([sectionHeaderName]);
+                        sectionRow.font = { bold: true, size: 11 };
+                        headerRowIndex = 2;
+                    }
+                    
+                    // Agregar headers
+                    worksheet.addRow(headers);
+                    
+                    // Agregar datos con el curso de cada alumno al inicio
+                    data.forEach(row => {
+                        const values = headers.map(header => {
+                            if (header === 'Curso') return courseKey;
+                            return row[header] || '';
+                        });
+                        worksheet.addRow(values);
+                    });
+                    
+                    // Formatear la fila de encabezados
+                    worksheet.getRow(headerRowIndex).font = { bold: true };
+                    worksheet.getRow(headerRowIndex).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFE0E0E0' }
+                    };
+                    
+                    // Autoajustar columnas
+                    headers.forEach((header, index) => {
+                        const column = worksheet.getColumn(index + 1);
+                        const minWidth = (index === 0 && includeSectionHeader && sectionHeaderName)
+                            ? Math.max(header.length, sectionHeaderName.length, courseKey.length, 15)
+                            : (index === 0 ? Math.max(header.length, courseKey.length, 15) : Math.max(header.length, 15));
+                        column.width = minWidth;
+                    });
+                    
+                    sheetsCreated++;
+                    logMessage(`Hoja creada: ${sheetName} (${data.length} filas, ${headers.length} columnas)`, 'info');
+                }
+            });
+        }
         
         if (sheetsCreated === 0) {
             throw new Error('No se crearon hojas en el archivo Excel');
@@ -721,17 +816,18 @@ async function generateConsolidatedFileReal(results) {
 
 // Generar contenido CSV
 function generateCSVContent(processedSheets: any) {
-    let csvContent = 'Hoja,Nombre,Apellido,Email,Calificación,Curso\n';
+    let csvContent = 'Hoja,Curso,Nombre,Apellido,Email,Calificación\n';
     
     (Object.entries(processedSheets) as [string, any[]][]).forEach(([sheetName, data]) => {
+        const courseKey = extractCourseKey(sheetName);
         data.forEach(row => {
             const csvRow = [
                 sheetName,
+                row.Curso || courseKey,
                 row.Nombre || '',
                 row.Apellido || '',
                 row.Email || '',
-                row.Calificación || '',
-                row.Curso || ''
+                row.Calificación || ''
             ].map(field => `"${field}"`).join(',');
             csvContent += csvRow + '\n';
         });

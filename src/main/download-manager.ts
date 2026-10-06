@@ -2,7 +2,9 @@
 import { Browser, Page } from 'puppeteer';
 import { ipcMain, IpcMainInvokeEvent, WebContents, app } from 'electron';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
+import * as browsersApi from '@puppeteer/browsers';
 import { logger } from './logger';
 
 const APRENDO_URL = 'https://aprendo.uct.cl/';
@@ -20,85 +22,155 @@ function getDefaultDownloadPath(): string {
   return target;
 }
 
-// Busca Chrome/Edge/Brave ya instalado en el sistema. Si encuentra uno, retorna
-// su executablePath para que Puppeteer lo use en vez de Chromium bundled.
-// Esto resuelve el caso típico en PCs de usuario donde hay Chrome pero no se
-// descargó el Chromium de Puppeteer.
+// Busca Chrome/Edge/Brave/Chromium ya instalado en el sistema, en cualquier SO
+// (Windows/Linux/macOS). Primero prueba ubicaciones estándar de cada plataforma
+// (sin rutas de usuario hardcodeadas: usa variables de entorno del SO) y luego
+// recorre el PATH buscando binarios conocidos. Si encuentra uno, retorna su
+// executablePath para que Puppeteer lo use en vez de descargar Chrome.
 function findSystemBrowser(): { path: string; name: string } | null {
-  const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
-  const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
-  const localApp = process.env.LOCALAPPDATA || '';
-  const checks: { p: string; n: string }[] = [
-    { p: path.join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
-    { p: path.join(pfx86, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
-    { p: path.join(localApp, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome (per-user)' },
-    { p: path.join(pf, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
-    { p: path.join(pfx86, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
-    { p: path.join(localApp, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge (per-user)' },
-    { p: path.join(pf, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'), n: 'Brave' },
-  ];
-  for (const c of checks) {
+  const candidates: { p: string; n: string }[] = [];
+
+  if (process.platform === 'win32') {
+    const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const localApp = process.env.LOCALAPPDATA || '';
+    candidates.push(
+      { p: path.join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
+      { p: path.join(pfx86, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome' },
+      { p: path.join(localApp, 'Google', 'Chrome', 'Application', 'chrome.exe'), n: 'Chrome (per-user)' },
+      { p: path.join(pf, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
+      { p: path.join(pfx86, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge' },
+      { p: path.join(localApp, 'Microsoft', 'Edge', 'Application', 'msedge.exe'), n: 'Edge (per-user)' },
+      { p: path.join(pf, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'), n: 'Brave' },
+    );
+  } else if (process.platform === 'darwin') {
+    candidates.push(
+      { p: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', n: 'Chrome' },
+      { p: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', n: 'Edge' },
+      { p: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', n: 'Brave' },
+      { p: '/Applications/Chromium.app/Contents/MacOS/Chromium', n: 'Chromium' },
+    );
+  } else if (process.platform === 'linux') {
+    // Google instala Chrome en /opt/google/chrome en varias distribuciones
+    // y ese directorio no siempre está en el PATH.
+    candidates.push(
+      { p: '/opt/google/chrome/chrome', n: 'Chrome' },
+      { p: '/opt/google/chrome/google-chrome', n: 'Chrome' },
+    );
+  }
+
+  for (const c of candidates) {
     try {
-      if (c.p && fs.existsSync(c.p)) {
+      if (c.p && fs.existsSync(c.p) && isExecutableFile(c.p)) {
         logger.info('puppeteer', `Navegador del sistema encontrado: ${c.n} -> ${c.p}`);
         return { path: c.p, name: c.n };
       }
     } catch { /* ignore */ }
   }
+
+  // Recorrer el PATH (sin ejecutar comandos, portable en los 3 SO).
+  const binNames = process.platform === 'win32'
+    ? ['chrome.exe', 'msedge.exe', 'brave.exe', 'chromium.exe']
+    : [
+        'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser',
+        'microsoft-edge', 'microsoft-edge-stable', 'msedge', 'brave', 'brave-browser',
+      ];
+  const pathDirs = (process.env.PATH || '').split(path.delimiter).filter(d => d);
+  for (const dir of pathDirs) {
+    for (const name of binNames) {
+      try {
+        const full = path.join(dir, name);
+        if (fs.existsSync(full) && isExecutableFile(full)) {
+          logger.info('puppeteer', `Navegador del sistema encontrado en PATH: ${full}`);
+          return { path: full, name };
+        }
+      } catch { /* ignore */ }
+    }
+  }
   return null;
 }
 
-// Descarga el Chromium de Puppeteer si no está en la caché. Retorna true si
-// quedó disponible (ya estaba o se descargó), false si falló.
-async function ensurePuppeteerChromium(puppeteer: any): Promise<boolean> {
+function isExecutableFile(filePath: string): boolean {
+  if (process.platform === 'win32') return true; // X_OK no es confiable en Windows
   try {
-    const browserFetcher = (puppeteer as any).createBrowserFetcher?.();
-    if (!browserFetcher) {
-      // Puppeteer v22+ usa @puppeteer/browsers en vez de createBrowserFetcher.
-      // Intentamos ejecutar el CLI de Puppeteer que descarga el navegador.
-      logger.info('puppeteer', 'createBrowserFetcher no disponible, intentando CLI install...');
-      const { execFile } = require('child_process');
-      await new Promise<void>((resolve, reject) => {
-        const puppeteerDir = path.dirname(require.resolve('puppeteer'));
-        // Buscar el ejecutable CLI dentro de node_modules/puppeteer
-        const cliCandidates = [
-          path.join(puppeteerDir, 'lib', 'cjs', 'puppeteer', 'node', 'cli.js'),
-          path.join(puppeteerDir, 'lib', 'cjs', 'puppeteer', 'cli.js'),
-        ];
-        const cli = cliCandidates.find(f => fs.existsSync(f));
-        if (!cli) {
-          reject(new Error('No se encontró el CLI de Puppeteer'));
-          return;
-        }
-        logger.info('puppeteer', `Ejecutando: node ${cli} browsers install chrome`);
-        execFile(process.execPath, [cli, 'browsers', 'install', 'chrome'], {
-          timeout: 300_000,
-          env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-        }, (err: Error | null, stdout: string, stderr: string) => {
-          if (err) {
-            logger.error('puppeteer', `CLI install falló: ${err.message}\nstdout: ${stdout}\nstderr: ${stderr}`);
-            reject(err);
-          } else {
-            logger.info('puppeteer', `CLI install OK: ${stdout.trim()}`);
-            resolve();
-          }
-        });
-      });
-      return true;
-    }
-    const rev = (puppeteer as any)._preferredRevision || '143.0.7499.169';
-    const revisionInfo = browserFetcher.revisionInfo(rev);
-    if (revisionInfo.local) {
-      logger.info('puppeteer', `Chromium ya está en caché: ${revisionInfo.executablePath}`);
-      return true;
-    }
-    logger.info('puppeteer', `Descargando Chromium rev ${rev}...`);
-    await browserFetcher.download(rev);
-    logger.info('puppeteer', 'Chromium descargado OK');
+    fs.accessSync(filePath, fs.constants.X_OK);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+// Garantiza que haya un Chrome utilizable para Puppeteer:
+//   1. Si el Chrome bundled de Puppeteer ya está en su caché (~/.cache/puppeteer,
+//      o PUPPETEER_CACHE_DIR si está definido), lo usa tal cual.
+//   2. Si no, descarga Chrome for Testing con la API oficial de @puppeteer/browsers
+//      (reemplaza al viejo createBrowserFetcher, removido en Puppeteer v22+, y al
+//      hack del CLI que dependía de rutas internas de node_modules).
+// Retorna el executablePath si quedó disponible, o null si falló.
+async function ensurePuppeteerChromium(puppeteer: any): Promise<string | null> {
+  try {
+    // 1) ¿El Chrome que Puppeteer espera ya está en la caché?
+    let expectedPath: string | null = null;
+    try {
+      expectedPath = typeof puppeteer?.executablePath === 'function'
+        ? puppeteer.executablePath()
+        : null;
+    } catch {
+      expectedPath = null;
+    }
+    if (expectedPath && fs.existsSync(expectedPath)) {
+      logger.info('puppeteer', `Chrome de Puppeteer ya está en caché: ${expectedPath}`);
+      return expectedPath;
+    }
+
+    // 2) Descargar Chrome for Testing en la misma caché que usa puppeteer.launch().
+    const platform = browsersApi.detectBrowserPlatform();
+    if (!platform) {
+      logger.error('puppeteer', `No se puede descargar Chrome en esta plataforma: ${process.platform}/${process.arch}`);
+      return null;
+    }
+    // Usar el build exacto que espera esta versión de Puppeteer: extraerlo de la
+    // ruta que calcula puppeteer.executablePath() (p.ej. ".../chrome/linux-143.0.7499.169/...").
+    // Si no se puede extraer, caer a la versión 'stable' del dashboard de CfT.
+    const pathMatch = (expectedPath || '').match(/(linux|win\d*|mac(?:_arm)?)-(\d+\.\d+\.\d+\.\d+)/i);
+    const buildId = pathMatch?.[2] ??
+      await browsersApi.resolveBuildId(browsersApi.Browser.CHROME, platform, 'stable');
+    const cacheDir = process.env.PUPPETEER_CACHE_DIR || path.join(os.homedir(), '.cache', 'puppeteer');
+    const installPath = browsersApi.computeExecutablePath({
+      cacheDir,
+      browser: browsersApi.Browser.CHROME,
+      buildId,
+    });
+    if (fs.existsSync(installPath)) {
+      logger.info('puppeteer', `Chrome for Testing ya está instalado: ${installPath}`);
+      return installPath;
+    }
+
+    logger.info('puppeteer', `Descargando Chrome for Testing (build ${buildId}, ~160 MB). La primera vez puede tardar varios minutos...`);
+    let lastLoggedPct = -1;
+    await browsersApi.install({
+      browser: browsersApi.Browser.CHROME,
+      buildId,
+      cacheDir,
+      downloadProgressCallback: (downloaded, total) => {
+        if (!total) return;
+        const pct = Math.floor((downloaded / total) * 100);
+        if (pct >= lastLoggedPct + 20) {
+          lastLoggedPct = pct;
+          logger.info('puppeteer', `Descargando Chrome: ${pct}%`);
+        }
+      },
+    });
+
+    if (fs.existsSync(installPath)) {
+      logger.info('puppeteer', 'Chrome for Testing descargado OK');
+      return installPath;
+    }
+    logger.error('puppeteer', `La instalación terminó pero no se encontró el binario en ${installPath}`);
+    return null;
   } catch (err) {
     logger.error('puppeteer', 'ensurePuppeteerChromium falló', err);
-    return false;
+    return null;
   }
 }
 
@@ -263,6 +335,33 @@ function sendStatus(webContents: WebContents, text: string, type: 'info' | 'succ
   webContents.send('puppeteer:status', { text, type });
 }
 
+function translateErrorMessage(msg: string): string {
+  if (!msg) return 'Credenciales incorrectas. Verifique su usuario y contraseña.';
+  const lower = msg.toLowerCase();
+  if (
+    lower.includes('invalid login') ||
+    lower.includes('please try again') ||
+    lower.includes('acceso inválido') ||
+    lower.includes('datos erróneos') ||
+    lower.includes('invalid credentials')
+  ) {
+    return 'Acceso inválido. Por favor, revise su usuario y contraseña e inténtelo de nuevo.';
+  }
+  if (lower.includes('username') && (lower.includes('password') || lower.includes('incorrect') || lower.includes('wrong'))) {
+    return 'Nombre de usuario o contraseña incorrectos. Por favor, inténtelo de nuevo.';
+  }
+  if (lower.includes('session expired') || lower.includes('sesión expirada')) {
+    return 'La sesión ha expirado. Por favor, inicie sesión nuevamente.';
+  }
+  if (lower.includes('cookies must be enabled') || lower.includes('cookies')) {
+    return 'Las cookies deben estar habilitadas en el navegador.';
+  }
+  if (lower.includes('too many login attempts') || lower.includes('account locked')) {
+    return 'Demasiados intentos fallidos. Su cuenta podría estar temporalmente bloqueada.';
+  }
+  return msg;
+}
+
 async function launchAndLogin(username: string, password: string, webContents: WebContents): Promise<{ browser: Browser; page: Page }> {
   logToRenderer(webContents, 'Iniciando nueva sesión de navegador...', 'info');
   logger.info('puppeteer', `launchAndLogin: usuario="${username}"`);
@@ -275,35 +374,54 @@ async function launchAndLogin(username: string, password: string, webContents: W
   logger.info('puppeteer', 'Importando módulo puppeteer...');
   const puppeteer = await import('puppeteer');
 
-  // Decidir qué binario usar:
-  //   1. Chrome/Edge/Brave del sistema (si existe) — preferido, evita descargas.
-  //   2. Chromium bundled de Puppeteer — descarga automática si no hay sistema.
-  //   3. Si todo falla, mensaje claro con instrucciones.
-  const systemBrowser = findSystemBrowser();
+  // Decidir qué binario usar (compatible Windows/Linux/macOS, sin rutas fijas):
+  //   1. Chrome bundled de Puppeteer si ya está en su caché (versión exacta
+  //      emparejada con esta versión de Puppeteer — la más confiable).
+  //   2. Chrome/Edge/Brave del sistema, buscado en ubicaciones estándar y PATH.
+  //   3. Descarga automática de Chrome for Testing con @puppeteer/browsers.
+  //   4. Si todo falla, mensaje claro con instrucciones.
   let executablePath: string | undefined;
-  if (systemBrowser) {
-    executablePath = systemBrowser.path;
-    logger.info('puppeteer', `Usando ${systemBrowser.name} del sistema: ${executablePath}`);
+  try {
+    executablePath = puppeteer.executablePath();
+    if (executablePath && !fs.existsSync(executablePath)) executablePath = undefined;
+  } catch {
+    executablePath = undefined;
+  }
+
+  if (executablePath) {
+    logger.info('puppeteer', `Usando Chrome de Puppeteer en caché: ${executablePath}`);
   } else {
-    logger.info('puppeteer', 'No hay navegador del sistema, intentando descargar Chromium...');
-    const ok = await ensurePuppeteerChromium(puppeteer as any);
-    if (!ok) {
-      const hint = 'No se encontró Chrome/Edge instalado y no se pudo descargar Chromium. Instale Google Chrome desde https://google.com/chrome y vuelva a intentar.';
-      logger.error('puppeteer', hint);
-      logToRenderer(webContents, hint, 'error');
-      throw new Error(hint);
+    const systemBrowser = findSystemBrowser();
+    if (systemBrowser) {
+      executablePath = systemBrowser.path;
+      logger.info('puppeteer', `Usando ${systemBrowser.name} del sistema: ${executablePath}`);
+    } else {
+      logger.info('puppeteer', 'No hay navegador del sistema, descargando Chrome for Testing...');
+      executablePath = (await ensurePuppeteerChromium(puppeteer as any)) ?? undefined;
     }
+  }
+
+  if (!executablePath) {
+    const hint = 'No se encontró Chrome/Edge/Chromium instalado y no se pudo descargar Chrome automáticamente. Verifique su conexión a internet y vuelva a intentar.';
+    logger.error('puppeteer', hint);
+    logToRenderer(webContents, hint, 'error');
+    throw new Error(hint);
   }
 
   let browser: Browser;
   try {
     logger.info('puppeteer', `Lanzando navegador (headless=true, --no-sandbox)...`);
     const launchOpts: any = {
+      executablePath,
       headless: true,
       defaultViewport: null,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--start-maximized',
+        '--lang=es-CL,es-ES,es'
+      ]
     };
-    if (executablePath) launchOpts.executablePath = executablePath;
     browser = await puppeteer.launch(launchOpts);
     logger.info('puppeteer', 'Navegador lanzado OK');
   } catch (err: any) {
@@ -319,34 +437,142 @@ async function launchAndLogin(username: string, password: string, webContents: W
   }
 
   const page = await browser.newPage();
+  await page.setExtraHTTPHeaders({
+    'Accept-Language': 'es-CL,es;q=0.9,es-ES;q=0.8'
+  });
 
   try {
     logToRenderer(webContents, `Navegando a ${APRENDO_URL}...`, 'info');
     await page.goto(APRENDO_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    try {
-      await page.waitForSelector('#inputName', { timeout: 5000 });
+    // 1. Verificar si ya existe una sesión activa previa
+    const isAlreadyLoggedIn = await page.evaluate(() => {
+      const hasLogout = Boolean(document.querySelector('a[href*="logout.php"], .usermenu'));
+      const notLoggedInClass = document.body.classList.contains('notloggedin');
+      return hasLogout && !notLoggedInClass;
+    });
+
+    if (!isAlreadyLoggedIn) {
+      // 2. Localizar campos de inicio de sesión
+      let userInput = (await page.$('#inputName')) || (await page.$('#username'));
+      let passInput = (await page.$('#inputPassword')) || (await page.$('#password'));
+
+      if (!userInput || !passInput) {
+        try {
+          await page.waitForSelector('#inputName, #username', { timeout: 5000 });
+          userInput = (await page.$('#inputName')) || (await page.$('#username'));
+          passInput = (await page.$('#inputPassword')) || (await page.$('#password'));
+        } catch {
+          // Si no están en la portada, navegar directo a la página de autenticación de Moodle
+          logToRenderer(webContents, 'Accediendo a la página de autenticación...', 'info');
+          await page.goto('https://aprendo.uct.cl/login/index.php', { waitUntil: 'networkidle2', timeout: 30000 });
+          userInput = (await page.$('#username')) || (await page.$('#inputName'));
+          passInput = (await page.$('#password')) || (await page.$('#inputPassword'));
+        }
+      }
+
+      if (!userInput || !passInput) {
+        throw new Error('No se pudo encontrar el formulario de inicio de sesión en Aprendo UCT.');
+      }
+
       logToRenderer(webContents, 'Ingresando credenciales...', 'info');
-      await page.type('#inputName', username);
-      await page.type('#inputPassword', password);
+      // Limpiar y escribir usuario
+      await userInput.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await userInput.type(username);
+
+      // Limpiar y escribir contraseña
+      await passInput.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await passInput.type(password);
 
       logToRenderer(webContents, 'Enviando formulario...', 'info');
-      await page.keyboard.press('Enter');
-      await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    } catch (e) {
-      logToRenderer(webContents, 'Verificando sesión existente...', 'info');
+
+      // Enviar formulario (botón submit si existe o Enter)
+      const submitBtn = await page.$('#loginbtn, button[type="submit"], input[type="submit"]');
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => null),
+        submitBtn ? submitBtn.click() : page.keyboard.press('Enter')
+      ]);
+
+      // Esperar brevemente a que el DOM procese la navegación o el render de la sesión
+      try {
+        await page.waitForFunction(
+          () => Boolean(document.querySelector('a[href*="logout.php"], .usermenu, .userbutton, #login .alert-danger, .loginform .alert-danger, #loginerrors')),
+          { timeout: 8000 }
+        );
+      } catch {
+        await new Promise(r => setTimeout(r, 1200));
+      }
+
+      // 3. Evaluar el estado de autenticación tras enviar el formulario
+      const currentUrl = page.url();
+      const isLoginUrl = currentUrl.includes('/login/') || currentUrl.includes('loginredirect');
+
+      const authState = await page.evaluate(() => {
+        const hasLogout = Boolean(document.querySelector('a[href*="logout.php"], .usermenu, .userbutton'));
+        const hasNotLoggedIn = document.body.classList.contains('notloggedin');
+        const hasLoginForm = Boolean(document.querySelector('#inputName, #username'));
+        return {
+          isLoggedIn: hasLogout && !hasNotLoggedIn,
+          hasLogout,
+          hasNotLoggedIn,
+          hasLoginForm
+        };
+      });
+
+      // Si la sesión está activa y no estamos en la URL de login: ¡Login exitoso!
+      if (authState.isLoggedIn && !isLoginUrl) {
+        logToRenderer(webContents, '¡Sesión activa confirmada!', 'success');
+        return { browser, page };
+      }
+
+      // Si no estamos autenticados, buscar mensaje de error específico dentro del formulario de login
+      const moodleAlertText = await page.evaluate(() => {
+        // Buscar exclusivamente en contenedores del formulario de login de Moodle
+        const selectors = [
+          '#login .alert-danger',
+          '.loginform .alert-danger',
+          '.login-container .alert-danger',
+          '#loginerrors',
+          '.loginerrors'
+        ];
+        for (const sel of selectors) {
+          const el = document.querySelector(sel) as HTMLElement | null;
+          if (el && (el.offsetParent !== null || el.offsetHeight > 0)) {
+            const text = el.textContent?.trim();
+            if (text && !text.toLowerCase().includes('cookie') && !text.toLowerCase().includes('borrar')) {
+              return text;
+            }
+          }
+        }
+
+        // Fallback: dentro del contenedor <form id="login"> o .login-form
+        const loginForm = document.querySelector('#login, .login-form, .loginform');
+        if (loginForm) {
+          const alertInside = loginForm.querySelector('.alert-danger, .alert') as HTMLElement | null;
+          if (alertInside) {
+            const text = alertInside.textContent?.trim();
+            if (text && !text.toLowerCase().includes('cookie') && !text.toLowerCase().includes('borrar')) {
+              return text;
+            }
+          }
+        }
+
+        return null;
+      });
+
+      const rawError = moodleAlertText || 'Acceso inválido. Por favor, revise su usuario y contraseña.';
+      const failureMessage = translateErrorMessage(rawError);
+      logger.warn('puppeteer', `Fallo de inicio de sesión: "${failureMessage}" (URL: ${currentUrl})`);
+      logToRenderer(webContents, `Error: ${failureMessage}`, 'error');
+      throw new Error(failureMessage);
     }
 
-    const loginInputExists = await page.$('#inputName');
-
-    if (!loginInputExists) {
-      logToRenderer(webContents, '¡Sesión activa confirmada!', 'success');
-      return { browser, page };
-    } else {
-      throw new Error('Fallo en el inicio de sesión. Verifique credenciales.');
-    }
+    logToRenderer(webContents, '¡Sesión activa confirmada!', 'success');
+    return { browser, page };
   } catch (error) {
-    await browser.close();
+    try { await browser.close(); } catch { /* ignore */ }
     throw error;
   }
 }
@@ -448,10 +674,11 @@ async function startDownloadLoop(startId: number, endId: number, webContents: We
           logToRenderer(webContents, `   URL: ${currentUrl}`, 'warning');
           logToRenderer(webContents, `   Título: ${currentTitle}`, 'warning');
 
-          if (await page.$('#inputName') || currentTitle.includes('Log in') || currentTitle.includes('Entrar')) {
+          if (await page.$('#inputName, #username') || currentTitle.includes('Log in') || currentTitle.includes('Entrar') || currentUrl.includes('/login/')) {
             logToRenderer(webContents, '   Detectado formulario de login. Sesión perdida.', 'error');
             try { await browser.close(); } catch (e) { /* ignore */ }
             globalBrowser = null;
+            globalPage = null;
           }
           emptyCount++;
         }
@@ -556,10 +783,11 @@ async function startLogDownloadLoop(startId: number, endId: number, webContents:
         await page.goto(logUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
         const currentUrl = page.url();
-        if (currentUrl.includes('login') || await page.$('#inputName')) {
+        if (currentUrl.includes('/login/') || await page.$('#inputName, #username')) {
           logToRenderer(webContents, `   Sesión perdida para ID ${id}.`, 'error');
           try { await browser.close(); } catch (e) { /* ignore */ }
           globalBrowser = null;
+          globalPage = null;
           emptyCount++;
           continue;
         }
@@ -728,10 +956,12 @@ async function startAttendanceDownloadLoop(startId: number, endId: number, webCo
 
         await page.goto(courseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-        if (await page.$('#inputName')) {
+        const currentUrl = page.url();
+        if (currentUrl.includes('/login/') || await page.$('#inputName, #username')) {
           logToRenderer(webContents, `   Sesión perdida para ID ${id}.`, 'error');
           try { await browser.close(); } catch { /* ignore */ }
           globalBrowser = null;
+          globalPage = null;
           emptyCount++;
           continue;
         }
@@ -856,6 +1086,12 @@ export function registerDownloadHandlers() {
       globalPage = session.page;
       return { success: true, message: 'Sesión iniciada correctamente' };
     } catch (error: any) {
+      if (globalBrowser) {
+        try { await globalBrowser.close(); } catch (e) { /* ignore */ }
+        globalBrowser = null;
+        globalPage = null;
+      }
+      currentCredentials = { username: '', password: '' };
       return { success: false, message: error.message };
     }
   });
@@ -890,6 +1126,11 @@ export function registerDownloadHandlers() {
       if (!page) return { success: false, message: 'No hay sesión activa.' };
 
       await page.goto('https://aprendo.uct.cl/my/', { waitUntil: 'networkidle2', timeout: 30000 });
+
+      const currentUrl = page.url();
+      if (currentUrl.includes('/login/') || await page.$('#inputName, #username')) {
+        return { success: false, message: 'Sesión no autenticada o expirada.' };
+      }
 
       const courses = await page.$$eval('.coursebox, .course_listitem, .dashboard-card, .card.dashboard-card', (els: Element[]) =>
         els.map((el: Element) => {
@@ -941,5 +1182,15 @@ export function registerDownloadHandlers() {
   ipcMain.handle('puppeteer:stop', async () => {
     shouldStop = true;
     return { success: true, message: 'Detención solicitada' };
+  });
+
+  ipcMain.handle('puppeteer:logout', async () => {
+    if (globalBrowser) {
+      try { await globalBrowser.close(); } catch { /* ignore */ }
+      globalBrowser = null;
+      globalPage = null;
+    }
+    currentCredentials = { username: '', password: '' };
+    return { success: true, message: 'Sesión cerrada correctamente' };
   });
 }

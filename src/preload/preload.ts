@@ -13,6 +13,9 @@ const api = {
   loginAprendo: (username: string, password: string) =>
     ipcRenderer.invoke('puppeteer:login', username, password),
 
+  logoutAprendo: () =>
+    ipcRenderer.invoke('puppeteer:logout'),
+
   startDownloads: (args: import('../shared/types').DownloadStartArgs) =>
     ipcRenderer.invoke('puppeteer:download', args),
 
@@ -51,6 +54,37 @@ const api = {
 
   // Platform info
   getPlatform: () => process.platform as 'win32' | 'darwin' | 'linux',
+
+  // Auto-update events
+  onUpdateAvailable: (callback: (data: import('../shared/types').UpdateInfo) => void) => {
+    const handler = (_e: IpcRendererEvent, data: import('../shared/types').UpdateInfo) => callback(data);
+    ipcRenderer.on('update:available', handler);
+    return () => ipcRenderer.removeListener('update:available', handler);
+  },
+  onUpdateProgress: (callback: (data: import('../shared/types').UpdateProgress) => void) => {
+    const handler = (_e: IpcRendererEvent, data: import('../shared/types').UpdateProgress) => callback(data);
+    ipcRenderer.on('update:download-progress', handler);
+    return () => ipcRenderer.removeListener('update:download-progress', handler);
+  },
+  onUpdateDownloaded: (callback: (data: { version: string }) => void) => {
+    const handler = (_e: IpcRendererEvent, data: { version: string }) => callback(data);
+    ipcRenderer.on('update:downloaded', handler);
+    return () => ipcRenderer.removeListener('update:downloaded', handler);
+  },
+  onUpdateCancelled: (callback: (data: { version: string }) => void) => {
+    const handler = (_e: IpcRendererEvent, data: { version: string }) => callback(data);
+    ipcRenderer.on('update:cancelled', handler);
+    return () => ipcRenderer.removeListener('update:cancelled', handler);
+  },
+  onUpdateError: (callback: (data: { message: string }) => void) => {
+    const handler = (_e: IpcRendererEvent, data: { message: string }) => callback(data);
+    ipcRenderer.on('update:error', handler);
+    return () => ipcRenderer.removeListener('update:error', handler);
+  },
+  // Acciones del update
+  downloadUpdate: () => ipcRenderer.send('update:download'),
+  cancelUpdate: () => ipcRenderer.send('update:cancel'),
+  installUpdate: () => ipcRenderer.send('update:install'),
 
   // Versions
   versions: {

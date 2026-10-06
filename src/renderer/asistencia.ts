@@ -6,7 +6,7 @@ import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
 import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
-import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog, formatSectionHeaderName } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 // Tipos
@@ -36,10 +36,27 @@ interface ConsolidatedCourseFile {
 let selectedFiles: File[] = [];
 let generatedFiles: ConsolidatedCourseFile[] = [];
 let isProcessing = false;
+let activeMode = 'separate'; // modo usado en la última consolidación
 
 // Cantidad esperada de módulos por curso (solo informativo)
 const EXPECTED_MODULES_PER_COURSE = 3;
 const MAX_FILES = 120;
+
+// Obtener modo de consolidación de asistencia desde la configuración
+function getAttendanceConsolidationMode(): string {
+    const mode = (window as any).configFilters?.getAttendanceConsolidationMode?.() ||
+                 (window as any).configFilters?.getConsolidationMode?.() || 'separate';
+    if (mode === 'single' || mode === 'all_single') return 'all_single';
+    return ['separate', 'course_single'].includes(mode) ? mode : 'separate';
+}
+
+function attendanceModeLabel(mode: string): string {
+    switch (mode) {
+        case 'course_single': return 'misma hoja por curso';
+        case 'all_single': return 'todo en una sola hoja';
+        default: return 'hojas separadas';
+    }
+}
 
 // Renderizar vista sin HTML externo
 export function renderAsistenciaPage(
@@ -66,7 +83,7 @@ export function renderAsistenciaPage(
         <div class="container">
             ${renderHeader({
                 title: 'Consolidar Asistencia',
-                subtitle: 'Agrupa los Excel de asistencia por curso y genera un archivo por curso con una hoja por módulo',
+                subtitle: 'Agrupa los Excel de asistencia por curso según el modo de consolidación configurado',
                 showBackButton: true,
                 showConfigButton: false
             })}
@@ -382,11 +399,12 @@ async function processFiles() {
 
     isProcessing = true;
     generatedFiles = [];
+    activeMode = getAttendanceConsolidationMode();
     updateFileList();
     document.getElementById('processingSection')!.style.display = 'block';
     document.getElementById('resultsSection')!.style.display = 'none';
 
-    logMessage(`Iniciando consolidación de ${selectedFiles.length} archivos de asistencia...`, 'info');
+    logMessage(`Iniciando consolidación de ${selectedFiles.length} archivos de asistencia (modo: ${attendanceModeLabel(activeMode)})...`, 'info');
 
     try {
         const groups = groupFilesByCourse(selectedFiles);
@@ -406,20 +424,33 @@ async function processFiles() {
             failedCourses: [] as string[]
         };
 
-        for (let i = 0; i < groups.length; i++) {
-            const group = groups[i];
-            updateProgress(i, groups.length, `Consolidando: ${group.courseKey}`);
+        if (activeMode === 'all_single') {
+            // MODO TODO EN UNA HOJA: un único Excel con todos los cursos y
+            // asistencias apilados en una sola hoja.
+            const consolidated = await generateAllInOneWorkbook(groups, results);
+            generatedFiles.push(consolidated);
+            results.successfulCourses = consolidated.moduleNames.length;
+            results.totalSheets += consolidated.sheetCount;
+            results.totalStudents += consolidated.studentCount;
+            logMessage(`${consolidated.fileName}: ${results.successfulCourses} curso(s) en 1 hoja`, 'success');
+        } else {
+            for (let i = 0; i < groups.length; i++) {
+                const group = groups[i];
+                updateProgress(i, groups.length, `Consolidando: ${group.courseKey}`);
 
-            try {
-                const consolidated = await generateCourseWorkbook(group);
-                generatedFiles.push(consolidated);
-                results.successfulCourses++;
-                results.totalSheets += consolidated.sheetCount;
-                results.totalStudents += consolidated.studentCount;
-                logMessage(`${consolidated.fileName}: ${consolidated.sheetCount} hojas (${consolidated.moduleNames.join(', ')})`, 'success');
-            } catch (error) {
-                logMessage(`Error consolidando ${group.courseKey}: ${(error as Error).message}`, 'error');
-                results.failedCourses.push(group.courseKey);
+                try {
+                    const consolidated = activeMode === 'course_single'
+                        ? await generateCourseWorkbookSingleSheet(group)
+                        : await generateCourseWorkbook(group);
+                    generatedFiles.push(consolidated);
+                    results.successfulCourses++;
+                    results.totalSheets += consolidated.sheetCount;
+                    results.totalStudents += consolidated.studentCount;
+                    logMessage(`${consolidated.fileName}: ${consolidated.sheetCount} hoja(s) (${consolidated.moduleNames.join(', ')})`, 'success');
+                } catch (error) {
+                    logMessage(`Error consolidando ${group.courseKey}: ${(error as Error).message}`, 'error');
+                    results.failedCourses.push(group.courseKey);
+                }
             }
         }
 
@@ -443,22 +474,36 @@ async function generateCourseWorkbook(group: CourseGroup): Promise<ConsolidatedC
     const moduleNames: string[] = [];
     let studentCount = 0;
 
+    const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+    const sectionHeaderName = formatSectionHeaderName(group.courseKey, 'Asistencias');
+
     // Ordenar módulos alfabéticamente para un resultado determinista
     const sortedModules = [...group.modules].sort((a, b) => a.moduleName.localeCompare(b.moduleName, 'es'));
 
     for (const mod of sortedModules) {
-        const rows = await readAttendanceFile(mod.file);
+        const rawRows = await readAttendanceFile(mod.file);
+        const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
         const sheetName = uniqueSheetName(sanitizeSheetName(mod.moduleName), usedSheetNames);
         usedSheetNames.add(sheetName.toLowerCase());
         moduleNames.push(sheetName);
 
         const worksheet = workbook.addWorksheet(sheetName);
+        const rowsForFit: any[][] = [];
+
+        if (includeSectionHeader) {
+            const sectionRow = worksheet.addRow([sectionHeaderName]);
+            sectionRow.getCell(1).font = { bold: true, size: 11 };
+            rowsForFit.push([sectionHeaderName]);
+        }
+
         rows.forEach(row => worksheet.addRow(row.length > 0 ? row : ['']));
+        rowsForFit.push(...rows);
 
         // Formato: fila de encabezados en negrita con relleno
         const headerRow = findHeaderRow(rows);
         if (headerRow > 0) {
-            const hr = worksheet.getRow(headerRow);
+            const targetHeaderRow = includeSectionHeader ? headerRow + 1 : headerRow;
+            const hr = worksheet.getRow(targetHeaderRow);
             hr.font = { bold: true };
             hr.fill = {
                 type: 'pattern',
@@ -466,13 +511,14 @@ async function generateCourseWorkbook(group: CourseGroup): Promise<ConsolidatedC
                 fgColor: { argb: 'FFE0E0E0' }
             };
             // Etiquetas de metadatos (Curso/Grupo) en negrita
-            for (let r = 1; r < headerRow; r++) {
+            const metaStart = includeSectionHeader ? 2 : 1;
+            for (let r = metaStart; r < targetHeaderRow; r++) {
                 worksheet.getRow(r).getCell(1).font = { bold: true };
             }
             studentCount += Math.max(0, rows.length - headerRow);
         }
 
-        autoFitColumns(worksheet, rows);
+        autoFitColumns(worksheet, rowsForFit);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -486,6 +532,176 @@ async function generateCourseWorkbook(group: CourseGroup): Promise<ConsolidatedC
         moduleNames,
         studentCount
     };
+}
+
+// Generar workbook consolidado de un curso en MODO MISMA HOJA POR CURSO:
+// un solo archivo por curso con una única hoja donde los módulos van apilados
+// verticalmente (metadatos + encabezados repetidos por módulo, fila en blanco
+// entre bloques).
+async function generateCourseWorkbookSingleSheet(group: CourseGroup): Promise<ConsolidatedCourseFile> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Asistencias');
+    const moduleNames: string[] = [];
+    const allRows: any[][] = [];
+    let studentCount = 0;
+    let nextRow = 1;
+
+    const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+    const sectionHeaderName = formatSectionHeaderName(group.courseKey, 'Asistencias');
+
+    if (includeSectionHeader) {
+        const titleRow = worksheet.addRow([sectionHeaderName]);
+        titleRow.getCell(1).font = { bold: true, size: 12 };
+        nextRow += 1;
+        allRows.push([sectionHeaderName]);
+    }
+
+    const sortedModules = [...group.modules].sort((a, b) => a.moduleName.localeCompare(b.moduleName, 'es'));
+
+    for (const mod of sortedModules) {
+        const rawRows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
+        const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
+        moduleNames.push(mod.moduleName);
+
+        const headerRow = findHeaderRow(rows);
+        studentCount += headerRow > 0 ? Math.max(0, rows.length - headerRow) : 0;
+
+        appendBlock(worksheet, rows, nextRow);
+        nextRow += rows.length;
+        worksheet.addRow([]); // fila separadora entre módulos
+        nextRow += 1;
+
+        allRows.push(...rows, []);
+    }
+
+    autoFitColumns(worksheet, allRows);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const fileName = `${group.courseKey}_Asistencias.xlsx`;
+
+    return {
+        courseKey: group.courseKey,
+        fileName,
+        buffer,
+        sheetCount: 1,
+        moduleNames,
+        studentCount
+    };
+}
+
+// Generar workbook consolidado en MODO TODO EN UNA HOJA: un único Excel con
+// una sola hoja donde todos los cursos van apilados. Cada curso tiene una fila
+// de título ("Curso: PAT 2026 01") seguida de sus módulos apilados, con filas
+// en blanco entre bloques y cursos.
+async function generateAllInOneWorkbook(groups: CourseGroup[], results: any): Promise<ConsolidatedCourseFile> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Asistencias');
+    const courseKeys: string[] = [];
+    const allRows: any[][] = [];
+    let studentCount = 0;
+    let nextRow = 1;
+
+    for (let i = 0; i < groups.length; i++) {
+        const group = groups[i];
+        updateProgress(i, groups.length, `Consolidando: ${group.courseKey}`);
+
+        let appendedModules = 0;
+        try {
+            // Fila de título del curso
+            const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+            const title = includeSectionHeader
+                ? formatSectionHeaderName(group.courseKey, 'Asistencias')
+                : `Curso: ${group.courseKey.replace(/_/g, ' ')}`;
+            const titleRow = worksheet.addRow([title]);
+            titleRow.getCell(1).font = { bold: true, size: 12 };
+            nextRow += 1;
+            allRows.push([title]);
+
+            const sortedModules = [...group.modules].sort((a, b) => a.moduleName.localeCompare(b.moduleName, 'es'));
+
+            for (const mod of sortedModules) {
+                try {
+                    const rawRows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
+                    const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
+                    const headerRow = findHeaderRow(rows);
+                    studentCount += headerRow > 0 ? Math.max(0, rows.length - headerRow) : 0;
+
+                    appendBlock(worksheet, rows, nextRow);
+                    nextRow += rows.length;
+                    worksheet.addRow([]); // fila separadora entre módulos
+                    nextRow += 1;
+
+                    allRows.push(...rows, []);
+                    appendedModules++;
+                } catch (err) {
+                    logMessage(`Error leyendo ${mod.file.name}: ${(err as Error).message}`, 'error');
+                }
+            }
+
+            if (appendedModules > 0) {
+                courseKeys.push(group.courseKey);
+            } else {
+                results.failedCourses.push(group.courseKey);
+            }
+
+            worksheet.addRow([]); // fila en blanco extra entre cursos
+            nextRow += 1;
+            allRows.push([]);
+        } catch (error) {
+            logMessage(`Error consolidando ${group.courseKey}: ${(error as Error).message}`, 'error');
+            results.failedCourses.push(group.courseKey);
+        }
+    }
+
+    autoFitColumns(worksheet, allRows);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const fileName = 'Asistencias_Consolidadas.xlsx';
+
+    return {
+        courseKey: 'Todos los cursos',
+        fileName,
+        buffer,
+        sheetCount: 1,
+        moduleNames: courseKeys,
+        studentCount
+    };
+}
+
+// Agrega las filas de un bloque (módulo) a la hoja en la fila indicada y aplica
+// el formato: encabezados en negrita con relleno y metadatos (Curso/Grupo) en
+// negrita, igual que en el modo de hojas separadas.
+function appendBlock(worksheet: ExcelJS.Worksheet, rows: any[][], startRow: number): void {
+    rows.forEach(row => worksheet.addRow(row.length > 0 ? row : ['']));
+
+    const headerRow = findHeaderRow(rows);
+    if (headerRow > 0) {
+        const hr = worksheet.getRow(startRow + headerRow - 1);
+        hr.font = { bold: true };
+        hr.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+        for (let r = 1; r < headerRow; r++) {
+            worksheet.getRow(startRow + r - 1).getCell(1).font = { bold: true };
+        }
+    }
+}
+
+// Elimina filas vacías al final de un bloque para que los bloques apilados no
+// acumulen filas en blanco sobrantes del export de Moodle.
+function trimTrailingEmptyRows(rows: any[][]): any[][] {
+    const copy = rows.map(r => [...r]);
+    while (copy.length > 0) {
+        const last = copy[copy.length - 1];
+        if (last.every(v => v === null || v === undefined || v === '')) {
+            copy.pop();
+        } else {
+            break;
+        }
+    }
+    return copy;
 }
 
 // Leer un archivo de asistencia preservando toda la estructura de la hoja
@@ -528,11 +744,33 @@ function normalizeCellValue(value: any): any {
     return value;
 }
 
-// Detectar la fila de encabezados (la que contiene "Apellido" en la primera celda)
+// Agrega la columna 'Curso' al inicio antes del nombre del alumno (antes de Apellido/Nombre)
+function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] {
+    const headerRow = findHeaderRow(rows); // 1-indexed
+    if (headerRow === 0) return rows;
+
+    return rows.map((row, idx) => {
+        if (idx < headerRow - 1) {
+            // Filas de metadatos (Curso/Grupo) o vacías
+            return row;
+        } else if (idx === headerRow - 1) {
+            // Fila de encabezados: 'Curso' al inicio antes de Apellido/Nombre
+            if (row[0] === 'Curso') return row;
+            return ['Curso', ...row];
+        } else {
+            // Filas de alumnos: valor del curso al inicio
+            if (row[0] === courseKey) return row;
+            return [courseKey, ...row];
+        }
+    });
+}
+
+// Detectar la fila de encabezados (la que contiene "Apellido" en la primera o segunda celda si ya tiene "Curso")
 function findHeaderRow(rows: any[][]): number {
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
         const firstCell = String(rows[i][0] || '').toLowerCase();
-        if (firstCell.includes('apellido')) {
+        const secondCell = String(rows[i][1] || '').toLowerCase();
+        if (firstCell.includes('apellido') || (firstCell === 'curso' && secondCell.includes('apellido'))) {
             return i + 1; // 1-indexed para ExcelJS
         }
     }
@@ -652,13 +890,18 @@ function showResults(results: any) {
         </div>
     `;
 
+    const modeMessage = activeMode === 'all_single'
+        ? 'todos los cursos quedaron en un único archivo Excel con todas las asistencias en una sola hoja'
+        : activeMode === 'course_single'
+            ? 'cada curso quedó en un solo archivo Excel con sus asistencias apiladas en una sola hoja'
+            : 'cada curso quedó en un solo archivo Excel con una hoja por módulo (nombrada con el nombre del módulo)';
+
     let downloadHTML = `
         <h3 style="margin-bottom: 15px; color: var(--success-color); font-size: 1.5rem; text-align: center;">
             ¡Asistencia Consolidada Lista!
         </h3>
         <p class="success-message" style="text-align: center; margin: 15px auto; max-width: 600px;">
-            ${getIcon('check-circle', 20)} <strong>Consolidación Completada:</strong> cada curso quedó en un solo
-            archivo Excel con una hoja por módulo (nombrada con el nombre del módulo).
+            ${getIcon('check-circle', 20)} <strong>Consolidación Completada:</strong> ${modeMessage}.
         </p>
     `;
 
@@ -690,7 +933,7 @@ function showResults(results: any) {
                 <span class="download-icon">${getIcon('clipboard-list', 24)}</span>
                 <div class="download-content">
                     <div class="download-title">${file.courseKey.replace(/_/g, ' ')}</div>
-                    <div class="download-subtitle">${file.fileName} &mdash; ${file.sheetCount} hojas: ${file.moduleNames.join(', ')}</div>
+                    <div class="download-subtitle">${file.fileName} &mdash; ${file.sheetCount} hoja(s): ${file.moduleNames.join(', ')}</div>
                 </div>
             </button>
         `;

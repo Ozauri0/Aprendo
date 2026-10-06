@@ -11,9 +11,11 @@ let rutFilters = [];
 let eliminatedUsersHistory = [];
 let persistenceEnabled = true; // Siempre activado
 let consolidationMode = 'separate'; // 'separate' o 'single'
+let attendanceConsolidationMode = 'separate'; // 'separate' | 'course_single' | 'all_single'
 let autoSave = true;
 let detailedLogs = true;
 let maxFiles = 60;
+let includeSectionHeader = true;
 
 export function renderConfigPage(
     injectStyles: (files: string[]) => void,
@@ -229,6 +231,19 @@ export function renderConfigPage(
                                 </label>
                             </div>
 
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label class="setting-label">
+                                        Fila de Identificación de Sección
+                                    </label>
+                                    <span class="setting-description">Agrega una fila al inicio con la sección (ej. PAT_2026_01_Calificaciones) al consolidar</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="includeSectionHeader" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
                             <div class="setting-item full-width">
                                 <div class="setting-info">
                                     <label class="setting-label" for="maxFiles">
@@ -246,9 +261,9 @@ export function renderConfigPage(
                             <div class="setting-item full-width">
                                 <div class="setting-info">
                                     <label class="setting-label" for="consolidationMode">
-                                        Modo de Consolidación de Informes
+                                        Modo de Consolidación
                                     </label>
-                                    <span class="setting-description">Define cómo se organizará la información al consolidar múltiples archivos Excel</span>
+                                    <span class="setting-description">Define cómo se organizará la información al consolidar (aplica a Calificaciones, Informes y Asistencia)</span>
                                 </div>
                                 <div class="radio-group">
                                     <label class="radio-option">
@@ -256,15 +271,23 @@ export function renderConfigPage(
                                             id="consolidationSeparate" checked>
                                         <div class="radio-content">
                                             <span class="radio-label">Hojas Separadas</span>
-                                            <span class="radio-description">Cada archivo se guardará en una hoja diferente del Excel consolidado</span>
+                                            <span class="radio-description">Cada sección o módulo en hojas independientes (asistencia: un archivo por curso con una hoja por módulo; calificaciones e informes: una hoja por curso)</span>
+                                        </div>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="consolidationMode" value="course_single"
+                                            id="consolidationCourseSingle">
+                                        <div class="radio-content">
+                                            <span class="radio-label">Misma Hoja por Curso</span>
+                                            <span class="radio-description">Agrupa por curso (asistencia: un archivo por curso con sus módulos en una sola hoja; calificaciones e informes: una hoja por curso)</span>
                                         </div>
                                     </label>
                                     <label class="radio-option">
                                         <input type="radio" name="consolidationMode" value="single"
                                             id="consolidationSingle">
                                         <div class="radio-content">
-                                            <span class="radio-label">Hoja Única</span>
-                                            <span class="radio-description">Todos los datos se consolidarán en una sola hoja continua</span>
+                                            <span class="radio-label">Hoja Única (Todo en una Hoja)</span>
+                                            <span class="radio-description">Todos los cursos y datos se consolidan en una sola hoja de Excel continua</span>
                                         </div>
                                     </label>
                                 </div>
@@ -614,6 +637,8 @@ const DEFAULT_CONFIG = {
     rutFilters: [],
     persistenceEnabled: true,
     consolidationMode: 'separate',
+    attendanceConsolidationMode: 'separate',
+    includeSectionHeader: true,
     autoSave: true,
     detailedLogs: true,
     maxFiles: 60
@@ -664,12 +689,13 @@ function setupEventListeners() {
         rutInput.disabled = false;
     }
 
-    // Modo de consolidación
+    // Modo de consolidación unificado
     const consolidationRadios = document.querySelectorAll('input[name="consolidationMode"]');
     consolidationRadios.forEach(radio => {
         radio.addEventListener('change', function () {
             if (this.checked) {
                 consolidationMode = this.value;
+                attendanceConsolidationMode = consolidationMode === 'single' ? 'all_single' : consolidationMode;
                 saveConfiguration(); // Guardado automático
                 console.log('Modo de consolidación cambiado a:', consolidationMode);
             }
@@ -693,6 +719,16 @@ function setupEventListeners() {
             detailedLogs = this.checked;
             saveConfiguration(); // Guardado automático
             console.log('Detailed Logs cambiado a:', detailedLogs);
+        });
+    }
+
+    // Include Section Header
+    const includeSectionHeaderCheckbox = document.getElementById('includeSectionHeader') as HTMLInputElement | null;
+    if (includeSectionHeaderCheckbox) {
+        includeSectionHeaderCheckbox.addEventListener('change', function () {
+            includeSectionHeader = this.checked;
+            saveConfiguration(); // Guardado automático
+            console.log('Include Section Header cambiado a:', includeSectionHeader);
         });
     }
 
@@ -1390,12 +1426,15 @@ function clearEliminatedHistory() {
 // ================= PERSISTENCIA =================
 
 function saveConfiguration(showNotif = false) {
+    attendanceConsolidationMode = consolidationMode === 'single' ? 'all_single' : consolidationMode;
     const config = {
         emailFilters: emailFilters,
         rutFilters: rutFilters,
         eliminatedUsersHistory: eliminatedUsersHistory,
         persistenceEnabled: persistenceEnabled,
         consolidationMode: consolidationMode,
+        attendanceConsolidationMode: attendanceConsolidationMode,
+        includeSectionHeader: includeSectionHeader,
         autoSave: autoSave,
         detailedLogs: detailedLogs,
         maxFiles: maxFiles,
@@ -1429,13 +1468,18 @@ function loadConfiguration() {
             eliminatedUsersHistory = config.eliminatedUsersHistory || [];
             persistenceEnabled = config.persistenceEnabled !== undefined ?
                 config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
-            consolidationMode = config.consolidationMode || DEFAULT_CONFIG.consolidationMode;
+            const rawMode = config.consolidationMode || (config.attendanceConsolidationMode === 'all_single' ? 'single' : config.attendanceConsolidationMode) || DEFAULT_CONFIG.consolidationMode;
+            consolidationMode = rawMode === 'all_single' ? 'single' : rawMode;
+            attendanceConsolidationMode = consolidationMode === 'single' ? 'all_single' : consolidationMode;
+            includeSectionHeader = config.includeSectionHeader !== undefined ?
+                config.includeSectionHeader : DEFAULT_CONFIG.includeSectionHeader;
             autoSave = config.autoSave !== undefined ? config.autoSave : DEFAULT_CONFIG.autoSave;
             detailedLogs = config.detailedLogs !== undefined ? config.detailedLogs : DEFAULT_CONFIG.detailedLogs;
             maxFiles = config.maxFiles || DEFAULT_CONFIG.maxFiles;
 
             console.log('Configuración cargada exitosamente');
             console.log('Modo de consolidación:', consolidationMode);
+            console.log('Modo de consolidación de asistencia:', attendanceConsolidationMode);
         } else {
             // Primera vez - usar configuración por defecto
             emailFilters = [...DEFAULT_CONFIG.emailFilters];
@@ -1443,6 +1487,8 @@ function loadConfiguration() {
             eliminatedUsersHistory = [];
             persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
             consolidationMode = DEFAULT_CONFIG.consolidationMode;
+            attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
+            includeSectionHeader = DEFAULT_CONFIG.includeSectionHeader;
             autoSave = DEFAULT_CONFIG.autoSave;
             detailedLogs = DEFAULT_CONFIG.detailedLogs;
             maxFiles = DEFAULT_CONFIG.maxFiles;
@@ -1457,6 +1503,8 @@ function loadConfiguration() {
         eliminatedUsersHistory = [];
         persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
         consolidationMode = DEFAULT_CONFIG.consolidationMode;
+        attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
+        includeSectionHeader = DEFAULT_CONFIG.includeSectionHeader;
         autoSave = DEFAULT_CONFIG.autoSave;
         detailedLogs = DEFAULT_CONFIG.detailedLogs;
         maxFiles = DEFAULT_CONFIG.maxFiles;
@@ -1469,6 +1517,9 @@ function resetConfiguration() {
         rutFilters = [...DEFAULT_CONFIG.rutFilters];
         eliminatedUsersHistory = [];
         persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
+        consolidationMode = DEFAULT_CONFIG.consolidationMode;
+        attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
+        includeSectionHeader = DEFAULT_CONFIG.includeSectionHeader;
 
         updateUI();
         saveConfiguration();
@@ -1492,15 +1543,10 @@ function updateUI() {
     updateRutFiltersUI();
 
     // Actualizar radio buttons de consolidación
-    const consolidationSeparate = document.getElementById('consolidationSeparate') as HTMLInputElement;
-    const consolidationSingle = document.getElementById('consolidationSingle') as HTMLInputElement;
-    if (consolidationSeparate && consolidationSingle) {
-        if (consolidationMode === 'separate') {
-            consolidationSeparate.checked = true;
-        } else {
-            consolidationSingle.checked = true;
-        }
-    }
+    const consolidationRadios = document.querySelectorAll<HTMLInputElement>('input[name="consolidationMode"]');
+    consolidationRadios.forEach(radio => {
+        radio.checked = radio.value === consolidationMode;
+    });
 
     // Actualizar checkbox de autoSave
     const autoSaveCheckbox = document.getElementById('autoSave') as HTMLInputElement;
@@ -1512,6 +1558,12 @@ function updateUI() {
     const detailedLogsCheckbox = document.getElementById('detailedLogs') as HTMLInputElement;
     if (detailedLogsCheckbox) {
         detailedLogsCheckbox.checked = detailedLogs;
+    }
+
+    // Actualizar checkbox de includeSectionHeader
+    const includeSectionHeaderCheckbox = document.getElementById('includeSectionHeader') as HTMLInputElement;
+    if (includeSectionHeaderCheckbox) {
+        includeSectionHeaderCheckbox.checked = includeSectionHeader;
     }
 
     // Actualizar input de maxFiles
@@ -1580,6 +1632,8 @@ function getBatchEliminatedUsers() {
     }),
     getEliminatedHistory: () => eliminatedUsersHistory,
     getConsolidationMode: () => consolidationMode,
+    getAttendanceConsolidationMode: () => consolidationMode === 'single' ? 'all_single' : consolidationMode,
+    getIncludeSectionHeader: () => includeSectionHeader,
     getAutoSave: () => autoSave,
     getDetailedLogs: () => detailedLogs,
     getMaxFiles: () => maxFiles,
@@ -1611,12 +1665,20 @@ function getBatchEliminatedUsers() {
                 eliminatedUsersHistory = config.eliminatedUsersHistory || [];
                 persistenceEnabled = config.persistenceEnabled !== undefined ?
                     config.persistenceEnabled : DEFAULT_CONFIG.persistenceEnabled;
+                const rawMode = config.consolidationMode || (config.attendanceConsolidationMode === 'all_single' ? 'single' : config.attendanceConsolidationMode) || DEFAULT_CONFIG.consolidationMode;
+                consolidationMode = rawMode === 'all_single' ? 'single' : rawMode;
+                attendanceConsolidationMode = consolidationMode === 'single' ? 'all_single' : consolidationMode;
+                includeSectionHeader = config.includeSectionHeader !== undefined ?
+                    config.includeSectionHeader : DEFAULT_CONFIG.includeSectionHeader;
             } else {
                 // Primera vez - usar configuración por defecto
                 emailFilters = [...DEFAULT_CONFIG.emailFilters];
                 rutFilters = [...DEFAULT_CONFIG.rutFilters];
                 eliminatedUsersHistory = [];
                 persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
+                consolidationMode = DEFAULT_CONFIG.consolidationMode;
+                attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
+                includeSectionHeader = DEFAULT_CONFIG.includeSectionHeader;
 
                 // Guardar configuración por defecto automáticamente
                 setTimeout(() => {
@@ -1635,6 +1697,9 @@ function getBatchEliminatedUsers() {
             rutFilters = [...DEFAULT_CONFIG.rutFilters];
             eliminatedUsersHistory = [];
             persistenceEnabled = DEFAULT_CONFIG.persistenceEnabled;
+            consolidationMode = DEFAULT_CONFIG.consolidationMode;
+            attendanceConsolidationMode = DEFAULT_CONFIG.attendanceConsolidationMode;
+            includeSectionHeader = DEFAULT_CONFIG.includeSectionHeader;
         }
     }
 })();
