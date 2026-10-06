@@ -182,6 +182,20 @@
                             </label>
                         </div>
 
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">
+                                    <span class="setting-icon">📑</span>
+                                    Fila de Identificación de Sección
+                                </label>
+                                <span class="setting-description">Agrega una fila al inicio con la sección (ej. PAT_2026_01_Calificaciones) al consolidar</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="includeSectionHeader" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
                         <div class="setting-item full-width">
                             <div class="setting-info">
                                 <label class="setting-label" for="maxFiles">
@@ -201,10 +215,9 @@
                             <div class="setting-info">
                                 <label class="setting-label" for="consolidationMode">
                                     <span class="setting-icon">📕</span>
-                                    Modo de Consolidación de Informes
+                                    Modo de Consolidación
                                 </label>
-                                <span class="setting-description">Define cómo se organizará la información al consolidar
-                                    múltiples archivos Excel</span>
+                                <span class="setting-description">Define cómo se organizará la información al consolidar (aplica a Calificaciones, Informes y Asistencia)</span>
                             </div>
                             <div class="radio-group">
                                 <label class="radio-option">
@@ -212,17 +225,23 @@
                                         id="consolidationSeparate" checked>
                                     <div class="radio-content">
                                         <span class="radio-label">📑 Hojas Separadas</span>
-                                        <span class="radio-description">Cada archivo se guardará en una hoja diferente
-                                            del Excel consolidado</span>
+                                        <span class="radio-description">Cada sección o módulo en hojas independientes (asistencia: un archivo por curso con una hoja por módulo; calificaciones e informes: una hoja por curso)</span>
+                                    </div>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="consolidationMode" value="course_single"
+                                        id="consolidationCourseSingle">
+                                    <div class="radio-content">
+                                        <span class="radio-label">📑 Misma Hoja por Curso</span>
+                                        <span class="radio-description">Agrupa por curso (asistencia: un archivo por curso con sus módulos en una sola hoja; calificaciones e informes: una hoja por curso)</span>
                                     </div>
                                 </label>
                                 <label class="radio-option">
                                     <input type="radio" name="consolidationMode" value="single"
                                         id="consolidationSingle">
                                     <div class="radio-content">
-                                        <span class="radio-label">📄 Hoja Única</span>
-                                        <span class="radio-description">Todos los datos se consolidarán en una sola hoja
-                                            continua</span>
+                                        <span class="radio-label">📄 Hoja Única (Todo en una Hoja)</span>
+                                        <span class="radio-description">Todos los cursos y datos se consolidan en una sola hoja de Excel continua</span>
                                     </div>
                                 </label>
                             </div>

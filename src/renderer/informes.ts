@@ -4,7 +4,7 @@ import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
 import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
-import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog, formatSectionHeaderName, extractCourseKey } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 export function renderInformesPage(
@@ -197,8 +197,8 @@ function addFilesToList(files) {
     
     const validFiles = files.filter(file => {
         const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
-        // Aceptar cualquier año (no solo 2025)
-        const isLogFile = /logs_pat_\d{4}_/i.test(file.name);
+        // Aceptar cualquier año y formatos comunes (ej. logs_PAT_2026_01, PAT_2026_01 Logs)
+        const isLogFile = /logs?_pat_\d{4}_/i.test(file.name) || /pat[_\s-]?\d{4}.*logs?/i.test(file.name) || /logs?/i.test(file.name);
         
         if (!isExcel) {
             logMessage(`${file.name}: No es un archivo Excel válido`, 'warning');
@@ -206,7 +206,7 @@ function addFilesToList(files) {
         }
         
         if (!isLogFile) {
-            logMessage(`${file.name}: No parece ser un archivo de logs (falta 'logs_PAT_2025_')`, 'warning');
+            logMessage(`${file.name}: No parece ser un archivo de logs`, 'warning');
             // Permitir el archivo pero mostrar advertencia
         }
         
@@ -260,7 +260,7 @@ function updateFileList() {
     // Ordenar archivos por número de curso para mostrar
     const sortedFiles = [...selectedFiles].sort((a, b) => {
         const extractNumber = (fileName) => {
-            const match = fileName.match(/logs_PAT_2025_(\d+)_/);
+            const match = fileName.match(/logs?_PAT_\d{4}_(\d+)/i) || fileName.match(/PAT[_\s-]?\d{4}[_\s-]?0*(\d+)/i) || fileName.match(/PAT[_\s-]?0*(\d+)/i);
             return match ? parseInt(match[1], 10) : 999;
         };
         return extractNumber(a.name) - extractNumber(b.name);
@@ -297,13 +297,13 @@ function updateFileList() {
 
 // Extraer número de curso del nombre del archivo
 function extractCourseNumber(fileName) {
-    const match = fileName.match(/logs_PAT_2025_(\d+)_/);
+    const match = fileName.match(/logs?_PAT_\d{4}_(\d+)/i) || fileName.match(/PAT[_\s-]?\d{4}[_\s-]?0*(\d+)/i) || fileName.match(/PAT[_\s-]?0*(\d+)/i);
     return match ? parseInt(match[1], 10) : null;
 }
 
 // Extraer fecha/hora del nombre del archivo
 function extractDateTime(fileName) {
-    const match = fileName.match(/logs_PAT_2025_\d+_(\d{8}-\d{4})/);
+    const match = fileName.match(/logs?_PAT_\d{4}_\d+_(\d{8}-\d{4})/i) || fileName.match(/(\d{8}-\d{4})/);
     if (match) {
         const dateTime = match[1];
         // Formatear: YYYYMMDD-HHMM -> DD/MM/YYYY HH:MM
@@ -382,7 +382,7 @@ async function processLogFiles() {
     // Ordenar archivos por número de curso (menor a mayor)
     const sortedFiles = [...selectedFiles].sort((a, b) => {
         const extractNumber = (fileName) => {
-            const match = fileName.match(/logs_PAT_2025_(\d+)_/);
+            const match = fileName.match(/logs?_PAT_\d{4}_(\d+)/i) || fileName.match(/PAT[_\s-]?\d{4}[_\s-]?0*(\d+)/i) || fileName.match(/PAT[_\s-]?0*(\d+)/i);
             return match ? parseInt(match[1], 10) : 0;
         };
         return extractNumber(a.name) - extractNumber(b.name);
@@ -401,7 +401,7 @@ async function processLogFiles() {
             
             if (fileResult.data) {
                 const sheetName = generateSheetName(file.name);
-                results.processedSheets.push({ sheetName, data: fileResult.data });
+                results.processedSheets.push({ sheetName, fileName: file.name, data: fileResult.data });
                 results.totalRecords += fileResult.data.length;
                 results.successfulFiles++;
                 
@@ -502,15 +502,18 @@ async function processLogFile(file: File): Promise<any> {
 // Generar archivo consolidado de logs
 async function generateConsolidatedLogFile(results: any) {
     // Obtener modo de consolidación configurado
-    const consolidationMode = (window as any).configFilters?.getConsolidationMode() || 'separate';
+    const consolidationMode = (window as any).configFilters?.getConsolidationMode?.() || 'separate';
+    const isSingleSheet = consolidationMode === 'single' || consolidationMode === 'all_single';
     console.log('Modo de consolidación:', consolidationMode);
-    logMessage(`Generando archivo Excel consolidado (modo: ${consolidationMode === 'separate' ? 'hojas separadas' : 'hoja única'})...`, 'info');
+    logMessage(`Generando archivo Excel consolidado (modo: ${isSingleSheet ? 'hoja única' : 'hojas separadas'})...`, 'info');
     
     try {
         // Crear nuevo workbook
         const workbook = new ExcelJS.Workbook();
         
-        if (consolidationMode === 'single') {
+        const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+
+        if (isSingleSheet) {
             // MODO HOJA ÚNICA: Consolidar todo en una sola hoja
             const worksheet = workbook.addWorksheet('Datos Consolidados');
             
@@ -534,21 +537,38 @@ async function generateConsolidatedLogFile(results: any) {
                 }
             });
             
-            // Convertir Set a Array y agregar "Archivo Origen" al inicio
-            const headers = ['Archivo Origen', ...Array.from(allHeaders)];
+            // Convertir Set a Array y agregar "Curso" y "Archivo Origen" al inicio
+            const headers = ['Curso', 'Archivo Origen', ...Array.from(allHeaders).filter(h => h !== 'Curso' && h !== 'Archivo Origen')];
+            
+            let headerRowIndex = 1;
+            let sectionHeaderName = '';
+            if (includeSectionHeader) {
+                const sampleFileName = results.processedSheets[0]?.fileName || results.processedSheets[0]?.sheetName || '';
+                const allSameCourse = results.processedSheets.length === 1 ||
+                    results.processedSheets.every((s: any) => formatSectionHeaderName(s.fileName || s.sheetName, 'Logs') === formatSectionHeaderName(sampleFileName, 'Logs'));
+                sectionHeaderName = (allSameCourse && sampleFileName)
+                    ? formatSectionHeaderName(sampleFileName, 'Logs')
+                    : 'Logs_Consolidados';
+                const sectionRow = worksheet.addRow([sectionHeaderName]);
+                sectionRow.font = { bold: true, size: 11 };
+                headerRowIndex = 2;
+            }
             
             // Agregar headers
             worksheet.addRow(headers);
             
-            // Agregar todos los datos
+            // Agregar todos los datos con el curso correspondiente al inicio
             allData.forEach(row => {
-                const values = headers.map(header => row[header] || '');
+                const values = headers.map(header => {
+                    if (header === 'Curso') return extractCourseKey(row['Archivo Origen'] || '');
+                    return row[header] || '';
+                });
                 worksheet.addRow(values);
             });
             
-            // Formatear la hoja
-            worksheet.getRow(1).font = { bold: true };
-            worksheet.getRow(1).fill = {
+            // Formatear la fila de encabezados
+            worksheet.getRow(headerRowIndex).font = { bold: true };
+            worksheet.getRow(headerRowIndex).fill = {
                 type: 'pattern',
                 pattern: 'solid',
                 fgColor: { argb: 'FFE0E0E0' }
@@ -557,7 +577,10 @@ async function generateConsolidatedLogFile(results: any) {
             // Autoajustar columnas
             headers.forEach((header, index) => {
                 const column = worksheet.getColumn(index + 1);
-                column.width = Math.max(header.length, 15);
+                const minWidth = (index === 0 && includeSectionHeader && sectionHeaderName)
+                    ? Math.max(header.length, sectionHeaderName.length, 15)
+                    : Math.max(header.length, 15);
+                column.width = minWidth;
             });
             
             logMessage(`Hoja única creada con ${allData.length} registros de ${results.processedSheets.length} archivos`, 'success');
@@ -567,25 +590,39 @@ async function generateConsolidatedLogFile(results: any) {
             let sheetsCreated = 0;
             
             results.processedSheets.forEach((sheetInfo) => {
-                const { sheetName, data } = sheetInfo;
+                const { sheetName, fileName, data } = sheetInfo;
                 if (data.length > 0) {
                     const worksheet = workbook.addWorksheet(sheetName);
                     
-                    // Obtener las columnas del primer registro
-                    const headers = Object.keys(data[0]);
+                    const courseKey = extractCourseKey(fileName || sheetName);
+                    // Obtener las columnas del primer registro anteponiendo 'Curso'
+                    const rawHeaders = Object.keys(data[0]);
+                    const headers = ['Curso', ...rawHeaders.filter(h => h !== 'Curso')];
+                    
+                    let headerRowIndex = 1;
+                    let sectionHeaderName = '';
+                    if (includeSectionHeader) {
+                        sectionHeaderName = formatSectionHeaderName(fileName || sheetName, 'Logs');
+                        const sectionRow = worksheet.addRow([sectionHeaderName]);
+                        sectionRow.font = { bold: true, size: 11 };
+                        headerRowIndex = 2;
+                    }
                     
                     // Agregar headers
                     worksheet.addRow(headers);
                     
-                    // Agregar datos
+                    // Agregar datos con el curso al inicio
                     data.forEach(row => {
-                        const values = headers.map(header => row[header] || '');
+                        const values = headers.map(header => {
+                            if (header === 'Curso') return courseKey;
+                            return row[header] || '';
+                        });
                         worksheet.addRow(values);
                     });
                     
-                    // Formatear la hoja
-                    worksheet.getRow(1).font = { bold: true };
-                    worksheet.getRow(1).fill = {
+                    // Formatear la fila de encabezados
+                    worksheet.getRow(headerRowIndex).font = { bold: true };
+                    worksheet.getRow(headerRowIndex).fill = {
                         type: 'pattern',
                         pattern: 'solid',
                         fgColor: { argb: 'FFE0E0E0' }
@@ -594,7 +631,10 @@ async function generateConsolidatedLogFile(results: any) {
                     // Autoajustar columnas
                     headers.forEach((header, index) => {
                         const column = worksheet.getColumn(index + 1);
-                        column.width = Math.max(header.length, 15);
+                        const minWidth = (index === 0 && includeSectionHeader && sectionHeaderName)
+                            ? Math.max(header.length, sectionHeaderName.length, courseKey.length, 15)
+                            : (index === 0 ? Math.max(header.length, courseKey.length, 15) : Math.max(header.length, 15));
+                        column.width = minWidth;
                     });
                     
                     sheetsCreated++;

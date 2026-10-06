@@ -109,21 +109,50 @@ El preload expone `window.aprendoAPI` con métodos seguros:
 2. **Logs de participación**: Navega a `report/log/index.php?chooselog=1&showusers=0&showcourses=0&id={id}&group=&user=&date=&modid=&modaction=c&origin=&edulevel=2&logreader=logstore_standard` (parámetros: `modaction=c`=Crear, `edulevel=2`=Todos los recursos participando, resto vacío=Todos), busca botón "Descargar" y descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Logs.xlsx`.
 3. **Asistencia**: Para cada ID, visita `course/view.php?id={id}`, busca TODOS los enlaces `/mod/attendance/view.php`, extrae el `attendanceId` de cada uno, navega a `mod/attendance/export.php?id={attendanceId}`, hace clic en `#id_submitbutton` (OK), descarga Excel vía CDP. Archivos se renombran a `PAT_XXXX Asistencia {nombre_modulo}.xlsx`. El usuario puede filtrar módulos por palabra clave (campo "Filtrar Asistencia", separado por comas, guardado en `localStorage.aprendo_attendance_filter`).
 
+### Modo de Consolidación Unificado (Configuración y Módulos)
+Configuración centralizada en **Configuración** (`consolidationMode`, opciones: `separate`, `course_single`, `single`, persistido en `localStorage.aprendo_user_filters_config` y sincronizado con `attendanceConsolidationMode`, expuesto via `configFilters.getConsolidationMode()` y `configFilters.getAttendanceConsolidationMode()`):
+Afecta a los tres módulos de consolidación:
+1. **`separate` (Hojas Separadas - default):**
+   - **Calificaciones**: Un archivo consolidado (`Calificaciones_Consolidadas_YYYY-MM-DD.xlsx`) con una hoja por cada curso.
+   - **Informes/Logs**: Un archivo consolidado (`Logs_Consolidados_YYYY-MM-DD.xlsx`) con una hoja por cada archivo de log.
+   - **Asistencia**: Un archivo por curso (`PAT_YYYY_NN_Asistencias.xlsx`) con una hoja por módulo de asistencia.
+2. **`course_single` (Misma Hoja por Curso):**
+   - **Calificaciones**: Una hoja por curso dentro del archivo consolidado.
+   - **Informes/Logs**: Una hoja por archivo/curso dentro del archivo consolidado.
+   - **Asistencia**: Un archivo por curso con todos sus módulos apilados en una sola hoja (`generateCourseWorkbookSingleSheet()`).
+3. **`single` (Hoja Única - Todo en una Hoja):**
+   - **Calificaciones**: Un archivo consolidado con **una sola hoja** (`Calificaciones Consolidadas`), donde todos los alumnos de todos los cursos están integrados en una sola tabla continua con la columna `Curso` al inicio.
+   - **Informes/Logs**: Un archivo consolidado con **una sola hoja** (`Datos Consolidados`), donde todos los registros de todos los archivos están integrados en una sola tabla continua con columnas `Curso` y `Archivo Origen`.
+   - **Asistencia**: Un único archivo consolidado (`Asistencias_Consolidadas.xlsx`) con **una sola hoja**, donde todos los cursos y módulos están apilados verticalmente (`generateAllInOneWorkbook()`).
+
 ### Módulo Consolidar Asistencia (`asistencia.ts`)
-Consolida los Excel de asistencia (varios módulos por curso) según el **modo de consolidación de asistencia** configurado en Configuración (radio de 3 opciones, persistido en `localStorage.aprendo_user_filters_config` → `attendanceConsolidationMode`, expuesto via `configFilters.getAttendanceConsolidationMode()`, default `separate`):
-1. `separate` (default): **un archivo por curso con una hoja por módulo** (comportamiento clásico).
-2. `course_single`: un archivo por curso con **una sola hoja** donde los módulos van apilados verticalmente (metadatos + encabezados repetidos por bloque, fila en blanco entre bloques) — `generateCourseWorkbookSingleSheet()`.
-3. `all_single`: **un único Excel con una sola hoja** (`Asistencias_Consolidadas.xlsx`), cursos apilados con fila de título `Curso: ...` en negrita y sus módulos debajo — `generateAllInOneWorkbook()`.
+Consolida los Excel de asistencia (varios módulos por curso) según el modo de consolidación configurado.
 Helpers compartidos de los modos apilados: `appendBlock()` (agrega bloque + formato negrita/relleno), `trimTrailingEmptyRows()` (recorta filas vacías finales del export de Moodle), `attendanceModeLabel()`.
 
 1. Parsea nombres tipo `PAT_2026_01_Asistencias Asistencia {MODULO}.xlsx` → curso `PAT_2026_01` + módulo `{MODULO}` (también acepta `PAT_01 Asistencia {MODULO}`; sin patrón → grupo `Sin_Curso`). Ojo: usar `(?!\d)` y no `\b` en el regex del curso porque `_` es carácter de palabra.
 2. Agrupa por curso (ordenado por número), módulos ordenados alfabéticamente (`localeCompare 'es'`).
 3. Cada hoja preserva la estructura completa del export de Moodle: metadatos (Curso/Grupo filas 1-2), encabezados en fila 4 (negrita + relleno), datos desde fila 5. Nombre de hoja = nombre del módulo (sanitizado, máx. 31 chars, deduplicado).
-4. Genera `PAT_2026_XX_Asistencias.xlsx` por curso.
+4. Genera los archivos correspondientes según el modo (`PAT_2026_XX_Asistencias.xlsx` o `Asistencias_Consolidadas.xlsx`).
 
 **Patrón de descarga (sin saturar el PC):** como este módulo produce muchos archivos (uno por curso), NO usa `<a download>` con blob URLs (eso disparaba un "Save As" / Explorer por archivo). En su lugar, el botón "Guardar todos en una carpeta" invoca el IPC **`files:save-batch`** (`window.aprendoAPI.saveFiles`) que en el main process abre **un único** `dialog.showOpenDialog({properties:['openDirectory','createDirectory']})` y escribe todos los buffers directamente con `fs.promises.writeFile`. El usuario ve UN solo dialog y todos los archivos quedan en la carpeta elegida. Los botones individuales por curso usan el mismo IPC con un solo archivo (un dialog por click intencional).
 - IPC registrado en `src/main/main.ts` (`registerBatchSaveHandler`), tipos en `src/shared/types.ts` (`BatchSaveArgs` / `BatchSaveResult`), expuesto en `src/preload/preload.ts` (`saveFiles`).
 - Ruta SPA: `#asistencia`; estilos propios en `styles/asistencia.css` (resto reutiliza `styles.css`).
+
+### Fila de Identificación de Sección en Consolidación
+Configuración en **Configuración** (`includeSectionHeader`, default `true`, persistido en `localStorage.aprendo_user_filters_config` y expuesto via `configFilters.getIncludeSectionHeader()`):
+- Cuando está activada, crea una primera fila al principio del archivo/hoja indicando la sección (ej: `PAT_2026_01_Calificaciones`, `PAT_2026_01_Logs`, `PAT_2026_01_Asistencias`).
+- Helper centralizado: `formatSectionHeaderName(input, type)` en `shared-utils.ts`.
+- Módulos soportados:
+  1. **Calificaciones**: Fila 1 con `[PAT_YYYY_NN_Calificaciones]` en negrita; encabezados de columnas pasan a fila 2 (negrita + relleno gris).
+  2. **Informes/Logs**: En modo hojas separadas, fila 1 con `[PAT_YYYY_NN_Logs]`; en modo hoja única, fila 1 con el encabezado de sección o `[Logs_Consolidados]`.
+  3. **Asistencia**: En modo hojas separadas y modo hoja por curso, fila 1 con `[PAT_YYYY_NN_Asistencias]`; en modo todo en una hoja, título del curso como `PAT_YYYY_NN_Asistencias`.
+
+### Columna de Curso al Inicio por Alumno
+En todos los archivos consolidados se añade la columna **`Curso`** como la **primera columna** (columna A, antes del nombre/apellido del alumno):
+- Helper: `extractCourseKey(input)` en `shared-utils.ts` (retorna ej. `PAT_2026_01`, `PAT_01`, `Curso_01`).
+- **Calificaciones**: Columna 1 `Curso` con el identificador del curso para cada alumno, seguida de las columnas de Moodle (`Nombre`, `Apellido`, etc.).
+- **Asistencia**: Encabezado con `Curso` antes de `Apellido`/`Nombre` y cada fila de alumno con el valor del curso al que pertenece en todos los modos de consolidación (`separate`, `course_single`, `all_single`).
+- **Informes/Logs**: Columna 1 `Curso` con el identificador del curso correspondiente a cada registro de actividad.
 
 ### Estado de Migración
 - [x] Preload con rutas correctas

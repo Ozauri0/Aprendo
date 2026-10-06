@@ -6,7 +6,7 @@ import { getIcon } from './icons';
 import { renderHeader, applyStoredTheme } from './components/header';
 import { renderFooter } from './components/footer';
 import { renderTitleBar, setupTitleBarActions } from './components/title-bar';
-import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog } from './shared-utils';
+import { toggleTheme, formatFileSize, logMessage, updateProgress, clearLog, formatSectionHeaderName } from './shared-utils';
 import ExcelJS from 'exceljs';
 
 // Tipos
@@ -44,15 +44,17 @@ const MAX_FILES = 120;
 
 // Obtener modo de consolidación de asistencia desde la configuración
 function getAttendanceConsolidationMode(): string {
-    const mode = (window as any).configFilters?.getAttendanceConsolidationMode?.() || 'separate';
-    return ['separate', 'course_single', 'all_single'].includes(mode) ? mode : 'separate';
+    const mode = (window as any).configFilters?.getAttendanceConsolidationMode?.() ||
+                 (window as any).configFilters?.getConsolidationMode?.() || 'separate';
+    if (mode === 'single' || mode === 'all_single') return 'all_single';
+    return ['separate', 'course_single'].includes(mode) ? mode : 'separate';
 }
 
 function attendanceModeLabel(mode: string): string {
     switch (mode) {
         case 'course_single': return 'misma hoja por curso';
         case 'all_single': return 'todo en una sola hoja';
-        default: return 'archivos separados';
+        default: return 'hojas separadas';
     }
 }
 
@@ -472,22 +474,36 @@ async function generateCourseWorkbook(group: CourseGroup): Promise<ConsolidatedC
     const moduleNames: string[] = [];
     let studentCount = 0;
 
+    const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+    const sectionHeaderName = formatSectionHeaderName(group.courseKey, 'Asistencias');
+
     // Ordenar módulos alfabéticamente para un resultado determinista
     const sortedModules = [...group.modules].sort((a, b) => a.moduleName.localeCompare(b.moduleName, 'es'));
 
     for (const mod of sortedModules) {
-        const rows = await readAttendanceFile(mod.file);
+        const rawRows = await readAttendanceFile(mod.file);
+        const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
         const sheetName = uniqueSheetName(sanitizeSheetName(mod.moduleName), usedSheetNames);
         usedSheetNames.add(sheetName.toLowerCase());
         moduleNames.push(sheetName);
 
         const worksheet = workbook.addWorksheet(sheetName);
+        const rowsForFit: any[][] = [];
+
+        if (includeSectionHeader) {
+            const sectionRow = worksheet.addRow([sectionHeaderName]);
+            sectionRow.getCell(1).font = { bold: true, size: 11 };
+            rowsForFit.push([sectionHeaderName]);
+        }
+
         rows.forEach(row => worksheet.addRow(row.length > 0 ? row : ['']));
+        rowsForFit.push(...rows);
 
         // Formato: fila de encabezados en negrita con relleno
         const headerRow = findHeaderRow(rows);
         if (headerRow > 0) {
-            const hr = worksheet.getRow(headerRow);
+            const targetHeaderRow = includeSectionHeader ? headerRow + 1 : headerRow;
+            const hr = worksheet.getRow(targetHeaderRow);
             hr.font = { bold: true };
             hr.fill = {
                 type: 'pattern',
@@ -495,13 +511,14 @@ async function generateCourseWorkbook(group: CourseGroup): Promise<ConsolidatedC
                 fgColor: { argb: 'FFE0E0E0' }
             };
             // Etiquetas de metadatos (Curso/Grupo) en negrita
-            for (let r = 1; r < headerRow; r++) {
+            const metaStart = includeSectionHeader ? 2 : 1;
+            for (let r = metaStart; r < targetHeaderRow; r++) {
                 worksheet.getRow(r).getCell(1).font = { bold: true };
             }
             studentCount += Math.max(0, rows.length - headerRow);
         }
 
-        autoFitColumns(worksheet, rows);
+        autoFitColumns(worksheet, rowsForFit);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -529,10 +546,21 @@ async function generateCourseWorkbookSingleSheet(group: CourseGroup): Promise<Co
     let studentCount = 0;
     let nextRow = 1;
 
+    const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+    const sectionHeaderName = formatSectionHeaderName(group.courseKey, 'Asistencias');
+
+    if (includeSectionHeader) {
+        const titleRow = worksheet.addRow([sectionHeaderName]);
+        titleRow.getCell(1).font = { bold: true, size: 12 };
+        nextRow += 1;
+        allRows.push([sectionHeaderName]);
+    }
+
     const sortedModules = [...group.modules].sort((a, b) => a.moduleName.localeCompare(b.moduleName, 'es'));
 
     for (const mod of sortedModules) {
-        const rows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
+        const rawRows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
+        const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
         moduleNames.push(mod.moduleName);
 
         const headerRow = findHeaderRow(rows);
@@ -580,7 +608,10 @@ async function generateAllInOneWorkbook(groups: CourseGroup[], results: any): Pr
         let appendedModules = 0;
         try {
             // Fila de título del curso
-            const title = `Curso: ${group.courseKey.replace(/_/g, ' ')}`;
+            const includeSectionHeader = (window as any).configFilters?.getIncludeSectionHeader?.() ?? true;
+            const title = includeSectionHeader
+                ? formatSectionHeaderName(group.courseKey, 'Asistencias')
+                : `Curso: ${group.courseKey.replace(/_/g, ' ')}`;
             const titleRow = worksheet.addRow([title]);
             titleRow.getCell(1).font = { bold: true, size: 12 };
             nextRow += 1;
@@ -590,7 +621,8 @@ async function generateAllInOneWorkbook(groups: CourseGroup[], results: any): Pr
 
             for (const mod of sortedModules) {
                 try {
-                    const rows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
+                    const rawRows = trimTrailingEmptyRows(await readAttendanceFile(mod.file));
+                    const rows = addCourseColumnToAttendance(rawRows, group.courseKey);
                     const headerRow = findHeaderRow(rows);
                     studentCount += headerRow > 0 ? Math.max(0, rows.length - headerRow) : 0;
 
@@ -712,11 +744,33 @@ function normalizeCellValue(value: any): any {
     return value;
 }
 
-// Detectar la fila de encabezados (la que contiene "Apellido" en la primera celda)
+// Agrega la columna 'Curso' al inicio antes del nombre del alumno (antes de Apellido/Nombre)
+function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] {
+    const headerRow = findHeaderRow(rows); // 1-indexed
+    if (headerRow === 0) return rows;
+
+    return rows.map((row, idx) => {
+        if (idx < headerRow - 1) {
+            // Filas de metadatos (Curso/Grupo) o vacías
+            return row;
+        } else if (idx === headerRow - 1) {
+            // Fila de encabezados: 'Curso' al inicio antes de Apellido/Nombre
+            if (row[0] === 'Curso') return row;
+            return ['Curso', ...row];
+        } else {
+            // Filas de alumnos: valor del curso al inicio
+            if (row[0] === courseKey) return row;
+            return [courseKey, ...row];
+        }
+    });
+}
+
+// Detectar la fila de encabezados (la que contiene "Apellido" en la primera o segunda celda si ya tiene "Curso")
 function findHeaderRow(rows: any[][]): number {
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
         const firstCell = String(rows[i][0] || '').toLowerCase();
-        if (firstCell.includes('apellido')) {
+        const secondCell = String(rows[i][1] || '').toLowerCase();
+        if (firstCell.includes('apellido') || (firstCell === 'curso' && secondCell.includes('apellido'))) {
             return i + 1; // 1-indexed para ExcelJS
         }
     }

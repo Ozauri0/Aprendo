@@ -185,3 +185,70 @@ describe('groupFilesByCourse', () => {
     expect(groups.length).toBe(0);
   });
 });
+
+// ==================== addCourseColumnToAttendance ====================
+function findHeaderRow(rows: any[][]): number {
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const firstCell = String(rows[i][0] || '').toLowerCase();
+    const secondCell = String(rows[i][1] || '').toLowerCase();
+    if (firstCell.includes('apellido') || (firstCell === 'curso' && secondCell.includes('apellido'))) {
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+function addCourseColumnToAttendance(rows: any[][], courseKey: string): any[][] {
+  const headerRow = findHeaderRow(rows);
+  if (headerRow === 0) return rows;
+
+  return rows.map((row, idx) => {
+    if (idx < headerRow - 1) {
+      return row;
+    } else if (idx === headerRow - 1) {
+      if (row[0] === 'Curso') return row;
+      return ['Curso', ...row];
+    } else {
+      if (row[0] === courseKey) return row;
+      return [courseKey, ...row];
+    }
+  });
+}
+
+describe('addCourseColumnToAttendance', () => {
+  test('antepone columna Curso al encabezado y a las filas de alumnos', () => {
+    const rawRows = [
+      ['Curso: PAT 2026 01'],
+      ['Grupo: Todos los participantes'],
+      [],
+      ['Apellido', 'Nombre', 'Número de ID', 'Dirección de correo', '01 Mar'],
+      ['Acuña', 'María', '20123456-7', 'macuna@alu.uct.cl', 'P'],
+      ['Barrientos', 'Carlos', '19876543-2', 'cbarrientos@alu.uct.cl', 'P'],
+    ];
+
+    const result = addCourseColumnToAttendance(rawRows, 'PAT_2026_01');
+
+    // Metadatos intactos
+    expect(result[0]).toEqual(['Curso: PAT 2026 01']);
+    expect(result[1]).toEqual(['Grupo: Todos los participantes']);
+    expect(result[2]).toEqual([]);
+
+    // Encabezado con 'Curso' al inicio
+    expect(result[3]).toEqual(['Curso', 'Apellido', 'Nombre', 'Número de ID', 'Dirección de correo', '01 Mar']);
+
+    // Filas de alumnos con 'PAT_2026_01' al inicio antes del nombre
+    expect(result[4]).toEqual(['PAT_2026_01', 'Acuña', 'María', '20123456-7', 'macuna@alu.uct.cl', 'P']);
+    expect(result[5]).toEqual(['PAT_2026_01', 'Barrientos', 'Carlos', '19876543-2', 'cbarrientos@alu.uct.cl', 'P']);
+  });
+
+  test('no duplica la columna Curso si ya fue agregada', () => {
+    const rawRows = [
+      ['Curso', 'Apellido', 'Nombre'],
+      ['PAT_2026_01', 'Acuña', 'María'],
+    ];
+
+    const result = addCourseColumnToAttendance(rawRows, 'PAT_2026_01');
+    expect(result[0]).toEqual(['Curso', 'Apellido', 'Nombre']);
+    expect(result[1]).toEqual(['PAT_2026_01', 'Acuña', 'María']);
+  });
+});
